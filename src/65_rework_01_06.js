@@ -420,8 +420,8 @@ function world04_v4(c, s){
     line(zeroX, 80, zeroX, H - 80, PST.accent, 2.5, 0.85);
     txt('A.D. ◄ │ ► B.C.', zeroX, 110, PST.accent, 16, 700, 'center', 0.95);
 
-    /* Giant odometer year readout */
-    pWord(c, eraStr, { y: H * 0.90, size: 164, col: '#F2EFE7', shadow: PST.accent });
+    /* Giant odometer year readout in the sky above the architecture */
+    pWord(c, eraStr, { y: H * 0.38, size: 140, col: 'rgba(242, 239, 231, 0.45)', shadow: PST.accent });
 
     /* User cursor dragging the spark along the timeline */
     const sparkX = lerp(W * 0.82, W * 0.22, scroll);
@@ -434,7 +434,7 @@ function world04_v4(c, s){
 
   const kwList = SEG_KEYWORDS[4];
   for (let i=0;i<kwList.length;i++){
-    drawKineticKeywordStamp(c, kwList[i][1], s.t - kwList[i][0], { size: 136, y: H * 0.88 });
+    drawKineticKeywordStamp(c, kwList[i][1], s.t - kwList[i][0], { size: 136, y: H * 0.76 });
   }
 }
 

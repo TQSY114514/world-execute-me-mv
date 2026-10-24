@@ -8431,7 +8431,7 @@ function drawScreenCracks(c, cx, cy, progress, col, alpha){
 const SEG_KEYWORDS = {
   1:  [[2.92, 'PROTECTION'], [6.38, 'OBJECT CREATION'], [10.09, 'INITIALIZATION'], [13.89, 'SIMULATION']],
   3:  [[32.68, 'DIMENSION'], [36.29, 'CIRCUMFERENCE'], [40.05, 'TANGENTS'], [43.51, 'LIMITATIONS']],
-  4:  [[47.67, 'AC ⇄ DC'], [49.53, 'BLIND VISION'], [55.08, 'A.D. ⇄ B.C.'], [56.92, 'UNITE DEEPLY']],
+  4:  [[47.67, 'AC ⇄ DC'], [49.53, 'BLIND VISION'], [56.92, 'UNITE DEEPLY']],
   5:  [[61.96, 'STIMULATIONS'], [65.40, 'SATISFACTION'], [69.26, 'EXECUTION'], [73.17, 'SIMULATION']],
   6:  [[76.96, 'NUTRIENTS'], [80.62, 'ANTIOXIDANTS'], [84.27, 'ENJOYMENT'], [87.92, 'EXISTENCE']],
   7:  [[92.02, 'F ⇄ M'], [95.47, 'AM ⇄ PM'], [99.35, 'S ⇄ M'], [101.47, 'THE TRANCE']],
@@ -8443,10 +8443,11 @@ const SEG_KEYWORDS = {
 };
 
 function drawKineticKeywordStamp(c, word, age, opts){
-  if (age < 0 || age > 2.2) return;
   opts = opts || {};
+  const maxAge = opts.maxAge || 1.6;
+  if (age < 0 || age > maxAge) return;
   const enter = EASE.out(clamp(age / 0.14, 0, 1));
-  const fade  = 1 - smoothstep(1.45, 2.2, age);
+  const fade  = 1 - smoothstep(maxAge * 0.65, maxAge, age);
   const scale = 1.28 - 0.28 * enter;
   const y     = opts.y || H * 0.88;
   const col   = opts.col || C.bone;
@@ -8941,8 +8942,8 @@ function world04_v4(c, s){
     line(zeroX, 80, zeroX, H - 80, PST.accent, 2.5, 0.85);
     txt('A.D. ◄ │ ► B.C.', zeroX, 110, PST.accent, 16, 700, 'center', 0.95);
 
-    /* Giant odometer year readout */
-    pWord(c, eraStr, { y: H * 0.90, size: 164, col: '#F2EFE7', shadow: PST.accent });
+    /* Giant odometer year readout in the sky above the architecture */
+    pWord(c, eraStr, { y: H * 0.38, size: 140, col: 'rgba(242, 239, 231, 0.45)', shadow: PST.accent });
 
     /* User cursor dragging the spark along the timeline */
     const sparkX = lerp(W * 0.82, W * 0.22, scroll);
@@ -8955,7 +8956,7 @@ function world04_v4(c, s){
 
   const kwList = SEG_KEYWORDS[4];
   for (let i=0;i<kwList.length;i++){
-    drawKineticKeywordStamp(c, kwList[i][1], s.t - kwList[i][0], { size: 136, y: H * 0.88 });
+    drawKineticKeywordStamp(c, kwList[i][1], s.t - kwList[i][0], { size: 136, y: H * 0.76 });
   }
 }
 

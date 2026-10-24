@@ -471,7 +471,7 @@ function renderFrameAt(t){
                 (typeof NEW_SCENE_IDS !== 'undefined' && NEW_SCENE_IDS[s.seg.id]));
 
   const isNew = (typeof NEW_SCENE_IDS !== 'undefined' && NEW_SCENE_IDS[s.seg.id]);
-  const noCompose = [1,2,3,6,9,10,11,13,14,15,17,19].indexOf(s.seg.id) >= 0;
+  const noCompose = [1,2,3,6,9,10,11,12,13,14,15,17,19].indexOf(s.seg.id) >= 0;
   /* new scenes get a mild, centre-anchored cut so absolute layout survives */
   const sh = isNew
     ? { z: cut ? clamp(1 + (cut.z - 1) * 0.22, 0.97, 1.09) : 1,

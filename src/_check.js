@@ -7467,6 +7467,2232 @@ SCENE_REGISTRY[3] = function(c, s){ world03m(c, s); };
 
 
 /* ============================================================
+   64 · DIRECTOR KIT v4 — 3-ink silhouettes, glyph fields, UI controls,
+        3D solids, Taubin heart curve, kinetic typography & match-cut anchor
+   ============================================================ */
+
+/* ---- 1 · Precomputed 3D Platonic Solids & Taubin Heart Curve ---- */
+const SOLIDS_3D = (function(){
+  const phi = (1 + Math.sqrt(5)) / 2;
+  const invPhi = 1 / phi;
+  function normV(v){
+    const l = Math.hypot(v[0], v[1], v[2]) || 1;
+    return [v[0]/l, v[1]/l, v[2]/l];
+  }
+  function makeEdges(verts, maxDist){
+    const edges = [];
+    for (let i=0;i<verts.length;i++){
+      for (let j=i+1;j<verts.length;j++){
+        const d = Math.hypot(verts[i][0]-verts[j][0], verts[i][1]-verts[j][1], verts[i][2]-verts[j][2]);
+        if (d < maxDist) edges.push([i, j]);
+      }
+    }
+    return { v: verts, e: edges };
+  }
+  const tetraV = [[1,1,1],[1,-1,-1],[-1,1,-1],[-1,-1,1]].map(normV);
+  const cubeV = [];
+  for (let i=0;i<8;i++) cubeV.push(normV([(i&1)?1:-1, (i&2)?1:-1, (i&4)?1:-1]));
+  const octaV = [[1,0,0],[-1,0,0],[0,1,0],[0,-1,0],[0,0,1],[0,0,-1]];
+  const icoV = [
+    [-1,phi,0],[1,phi,0],[-1,-phi,0],[1,-phi,0],
+    [0,-1,phi],[0,1,phi],[0,-1,-phi],[0,1,-phi],
+    [phi,0,-1],[phi,0,1],[-phi,0,-1],[-phi,0,1]
+  ].map(normV);
+  const dodecaraw = [];
+  for (let i=0;i<8;i++) dodecaraw.push([(i&1)?1:-1, (i&2)?1:-1, (i&4)?1:-1]);
+  for (let s1 of [-1,1]) for (let s2 of [-1,1]){
+    dodecaraw.push([0, s1*invPhi, s2*phi]);
+    dodecaraw.push([s1*invPhi, s2*phi, 0]);
+    dodecaraw.push([s1*phi, 0, s2*invPhi]);
+  }
+  const dodecaV = dodecaraw.map(normV);
+  return [
+    makeEdges(tetraV, 1.80),
+    makeEdges(cubeV, 1.25),
+    makeEdges(octaV, 1.50),
+    makeEdges(dodecaV, 0.85),
+    makeEdges(icoV, 1.15)
+  ];
+})();
+
+/* Algebraic 2D heart curve & 3D Taubin heart rings + Fourier epicycles */
+const HEART_DATA = (function(){
+  const pts = [];
+  const N = 360;
+  for (let i=0;i<N;i++){
+    const a = (i / N) * TAU;
+    /* classic smooth parametric heart normalized to -1..1 */
+    const x = 16 * Math.pow(Math.sin(a), 3) / 17;
+    const y = -(13 * Math.cos(a) - 5 * Math.cos(2*a) - 2 * Math.cos(3*a) - Math.cos(4*a)) / 17;
+    pts.push([x, y]);
+  }
+  /* compute discrete Fourier transform (top 14 epicycles) */
+  const harmonics = [-7,-6,-5,-4,-3,-2,-1,1,2,3,4,5,6,7];
+  const epicycles = harmonics.map(function(freq){
+    let re = 0, im = 0;
+    for (let n=0;n<N;n++){
+      const phi = -TAU * freq * n / N;
+      const px = pts[n][0], py = pts[n][1];
+      re += px * Math.cos(phi) - py * Math.sin(phi);
+      im += px * Math.sin(phi) + py * Math.cos(phi);
+    }
+    re /= N; im /= N;
+    return { freq: freq, amp: Math.hypot(re, im), phase: Math.atan2(im, re) };
+  }).sort(function(a,b){ return b.amp - a.amp; });
+
+  /* 3D Taubin heart ribs for Seg 14/15 */
+  const ribs = [];
+  for (let lat=-5; lat<=5; lat++){
+    const z = lat / 5.5;
+    const scale = Math.sqrt(Math.max(0.04, 1 - z*z*0.88));
+    const ring = [];
+    for (let i=0;i<=72;i++){
+      const p = pts[(i*5) % N];
+      ring.push([p[0]*scale, p[1]*scale, z*0.52]);
+    }
+    ribs.push(ring);
+  }
+  return { pts: pts, epicycles: epicycles, ribs: ribs };
+})();
+
+/* ---- 2 · Three-Ink Silhouette & Bust Engine (Nyankomintsu v4 style) ---- */
+function bustContourPath(c, cx, cy, S, variant){
+  /* variant: 'female' | 'male' | 'cat' | 'bowed' | 'reach' */
+  const isMale = variant === 'male';
+  const isCat  = variant === 'cat';
+  const bowed  = variant === 'bowed';
+  const hy = cy - S * (bowed ? 0.44 : 0.50);
+  const hx = cx + (bowed ? S * 0.04 : 0);
+  const hr = S * (isMale ? 0.165 : 0.155);
+
+  c.beginPath();
+  /* head oval */
+  c.ellipse(hx, hy, hr * 0.88, hr * 1.12, bowed ? 0.22 : 0, 0, TAU);
+
+  /* hair / silhouette flow for female & cat */
+  if (!isMale){
+    c.moveTo(hx - hr*0.92, hy - hr*0.2);
+    c.bezierCurveTo(hx - hr*1.35, hy + hr*0.5, hx - hr*1.45, hy + hr*1.4, hx - hr*0.95, hy + hr*1.85);
+    c.lineTo(hx + hr*0.95, hy + hr*1.85);
+    c.bezierCurveTo(hx + hr*1.42, hy + hr*1.4, hx + hr*1.30, hy + hr*0.5, hx + hr*0.92, hy - hr*0.2);
+    c.closePath();
+  }
+
+  /* cat ears */
+  if (isCat){
+    c.moveTo(hx - hr*0.82, hy - hr*0.72);
+    c.lineTo(hx - hr*1.18, hy - hr*1.68);
+    c.lineTo(hx - hr*0.22, hy - hr*1.05);
+    c.closePath();
+
+    c.moveTo(hx + hr*0.82, hy - hr*0.72);
+    c.lineTo(hx + hr*1.18, hy - hr*1.68);
+    c.lineTo(hx + hr*0.22, hy - hr*1.05);
+    c.closePath();
+  }
+
+  /* neck */
+  const nw = S * (isMale ? 0.072 : 0.054);
+  c.rect(cx - nw, cy - S*0.33, nw*2, S*0.13);
+
+  /* shoulders & bust */
+  const sw = S * (isMale ? 0.44 : 0.36);
+  const topY = cy - S*0.22;
+  const botY = cy + S*0.50;
+  c.moveTo(cx - sw, botY);
+  c.bezierCurveTo(cx - sw*1.04, topY + S*0.12, cx - sw*0.72, topY, cx - nw, topY);
+  c.lineTo(cx + nw, topY);
+  c.bezierCurveTo(cx + sw*0.72, topY, cx + sw*1.04, topY + S*0.12, cx + sw, botY);
+  c.closePath();
+}
+
+function drawSparkMotif(c, x, y, r, col, alpha, rot){
+  c.save();
+  c.translate(x, y);
+  if (rot) c.rotate(rot);
+  c.fillStyle = col;
+  c.globalAlpha = alpha == null ? 1 : alpha;
+  c.beginPath();
+  const petals = 8;
+  for (let i=0;i<petals*2;i++){
+    const a = (i / (petals*2)) * TAU;
+    const rad = (i % 2 === 0) ? r : r * 0.28;
+    const px = Math.cos(a) * rad, py = Math.sin(a) * rad;
+    if (i === 0) c.moveTo(px, py); else c.lineTo(px, py);
+  }
+  c.closePath();
+  c.fill();
+  c.restore();
+  c.globalAlpha = 1;
+}
+
+function drawThreeInkBust(c, cx, cy, S, opts){
+  opts = opts || {};
+  const variant = opts.variant || 'female';
+  const misreg  = opts.misreg == null ? 6 : opts.misreg;
+  const colMe   = opts.colMe   || '#E87A2E';
+  const colYou  = opts.colYou  || '#F2EFE7';
+  const colInk  = opts.colInk  || '#121215';
+  const noCream = !!opts.noCream;
+  const alpha   = opts.alpha == null ? 1 : opts.alpha;
+
+  c.save();
+  /* 1 · Cream plate (You / Light highlight plate) */
+  if (!noCream){
+    c.save();
+    c.translate(-misreg * 0.85, -misreg * 0.45);
+    c.globalAlpha = alpha * 0.88;
+    c.fillStyle = colYou;
+    bustContourPath(c, cx, cy, S, variant);
+    c.fill();
+    c.restore();
+  } else {
+    /* missing cream plate: dashed ghost outline where user used to be */
+    c.save();
+    c.translate(-misreg * 1.1, -misreg * 0.6);
+    c.globalAlpha = alpha * 0.45;
+    c.strokeStyle = '#7A7A82';
+    c.lineWidth = 1.6;
+    c.setLineDash([7, 5]);
+    bustContourPath(c, cx, cy, S, variant);
+    c.stroke();
+    c.setLineDash([]);
+    c.restore();
+  }
+
+  /* 2 · Orange / Accent plate (Me plate) */
+  c.save();
+  c.translate(misreg * 0.9, misreg * 0.4);
+  c.globalAlpha = alpha * 0.90;
+  c.fillStyle = colMe;
+  bustContourPath(c, cx, cy, S, variant);
+  c.fill();
+  c.restore();
+
+  /* 3 · Red error edge plate if corrupted */
+  if (opts.redEdge){
+    c.save();
+    c.translate(misreg * 1.45, -misreg * 0.7);
+    c.globalAlpha = alpha * 0.75;
+    c.strokeStyle = '#FF2A2A';
+    c.lineWidth = 2.4;
+    bustContourPath(c, cx, cy, S, variant);
+    c.stroke();
+    c.restore();
+  }
+
+  /* 4 · Main near-black ink plate */
+  c.save();
+  c.globalAlpha = alpha;
+  c.fillStyle = colInk;
+  bustContourPath(c, cx, cy, S, variant);
+  c.fill();
+  c.strokeStyle = colYou;
+  c.lineWidth = 1.2;
+  c.globalAlpha = alpha * 0.35;
+  c.stroke();
+  c.restore();
+
+  /* 5 · Hair spark ornament (her motif) */
+  const hy = cy - S * (variant === 'bowed' ? 0.44 : 0.50);
+  const hx = cx + (variant === 'bowed' ? S * 0.04 : 0);
+  drawSparkMotif(c, hx - S*0.11, hy - S*0.09, S*0.048, colMe, alpha, opts.rot || 0);
+
+  /* 6 · Reaching hand + heart if variant === 'reach' */
+  if (variant === 'reach'){
+    const hx2 = cx + S*0.24, hy2 = cy + S*0.08;
+    c.save();
+    c.globalAlpha = alpha;
+    c.fillStyle = noCream ? colMe : colYou;
+    c.beginPath();
+    c.arc(hx2, hy2, S*0.065, 0, TAU);
+    c.fill();
+    /* fingers */
+    for (let f=0;f<4;f++){
+      const fa = -0.9 + f*0.42;
+      c.beginPath();
+      c.ellipse(hx2 + Math.cos(fa)*S*0.08, hy2 + Math.sin(fa)*S*0.08, S*0.035, S*0.014, fa, 0, TAU);
+      c.fill();
+    }
+    /* heart above palm */
+    if (opts.heartCount !== 0){
+      c.save();
+      c.translate(hx2, hy2 - S*0.13);
+      c.scale(S*0.0042, S*0.0042);
+      c.beginPath();
+      for (let i=0;i<HEART_DATA.pts.length;i+=3){
+        const p = HEART_DATA.pts[i];
+        if (i===0) c.moveTo(p[0]*18, p[1]*18); else c.lineTo(p[0]*18, p[1]*18);
+      }
+      c.closePath();
+      c.fillStyle = colMe;
+      c.fill();
+      c.restore();
+    }
+    c.restore();
+  }
+  c.restore();
+}
+
+/* ---- 3 · Code-Glyph Density Field (ASCII / Syntax Calligram) ---- */
+const CODE_STREAM = 'world.execute(me);const love=solve(me,you);if(you.online){send(love);}010110C40H56_SIGKILL_ROOT_GOD=YOU;';
+
+function drawGlyphFieldShape(c, cx, cy, rx, ry, shapeFn, opts){
+  opts = opts || {};
+  const cols = opts.cols || 46;
+  const rows = opts.rows || 28;
+  const cw = (rx * 2) / cols;
+  const ch = (ry * 2) / rows;
+  const colMain = opts.col || C.accent;
+  const colSub  = opts.colSub || C.bone;
+  const bgFill  = opts.bgFill || null;
+  const t       = opts.t || 0;
+  const sliceOpen = opts.sliceOpen || 0; /* 0..1 splits top/bottom or left/right */
+
+  c.save();
+  c.font = '600 ' + Math.max(8, Math.round(ch * 0.85)) + 'px ' + MONO;
+  c.textAlign = 'center';
+  c.textBaseline = 'middle';
+
+  for (let r=0; r<rows; r++){
+    const v = (r + 0.5) / rows * 2 - 1;
+    const rowShift = opts.rowShift ? opts.rowShift(r, rows, t) : 0;
+    const splitY = (v < 0 ? -1 : 1) * sliceOpen * 38;
+    for (let q=0; q<cols; q++){
+      const u = (q + 0.5) / cols * 2 - 1;
+      const inside = shapeFn(u, v);
+      if (inside <= 0) continue;
+      const px = cx + u * rx + rowShift;
+      const py = cy + v * ry + splitY;
+      if (bgFill){
+        c.fillStyle = bgFill;
+        c.globalAlpha = 0.82 * Math.min(1, inside * 2.5);
+        c.fillRect(px - cw*0.52, py - ch*0.52, cw*1.04, ch*1.04);
+      }
+      const idx = (q + r * 13 + Math.floor(t * 12)) % CODE_STREAM.length;
+      const chr = CODE_STREAM[idx];
+      const isEdge = inside < 0.22;
+      c.fillStyle = isEdge ? colSub : colMain;
+      c.globalAlpha = isEdge ? 0.95 : (0.55 + 0.40 * hash2(q, r));
+      c.fillText(chr, px, py);
+    }
+  }
+  c.restore();
+  c.globalAlpha = 1;
+}
+
+/* ---- 4 · Interactive UI Controls & User Cursor ---- */
+function drawUserPointer(c, x, y, clicking, col){
+  c.save();
+  c.translate(x, y);
+  const sc = clicking ? 0.84 : 1.0;
+  c.scale(sc, sc);
+  c.beginPath();
+  c.moveTo(0, 0);
+  c.lineTo(0, 26);
+  c.lineTo(7, 19.5);
+  c.lineTo(12.5, 30);
+  c.lineTo(17.5, 27);
+  c.lineTo(12, 16.5);
+  c.lineTo(21, 16.5);
+  c.closePath();
+  c.fillStyle = col || '#F4EFE6';
+  c.globalAlpha = 0.96;
+  c.fill();
+  c.strokeStyle = '#0A0A0D';
+  c.lineWidth = 2;
+  c.stroke();
+  c.restore();
+  if (clicking){
+    circle(x + 4, y + 4, 24, C.accent, 2, 0.75);
+    circle(x + 4, y + 4, 42, C.bone, 1, 0.35);
+  }
+}
+
+function drawBigToggle(c, x, y, w, h, state01, labelL, labelR, title, opts){
+  opts = opts || {};
+  const dark = opts.dark !== false;
+  const fg = dark ? C.bone : '#14130F';
+  const acc = opts.accent || C.accent;
+
+  c.save();
+  /* outer frame */
+  c.fillStyle = dark ? 'rgba(18,18,22,0.92)' : 'rgba(235,230,220,0.92)';
+  c.fillRect(x, y, w, h);
+  c.strokeStyle = fg;
+  c.lineWidth = 2;
+  c.globalAlpha = 0.85;
+  c.strokeRect(x, y, w, h);
+
+  if (title){
+    c.font = '600 13px ' + MONO;
+    c.fillStyle = fg;
+    c.globalAlpha = 0.55;
+    c.textAlign = 'left';
+    c.fillText(title, x, y - 14);
+  }
+
+  /* knob */
+  const pad = 8;
+  const kw = (w - pad*2) * 0.5;
+  const kx = x + pad + kw * clamp(state01, 0, 1);
+  c.globalAlpha = 0.94;
+  c.fillStyle = acc;
+  c.fillRect(kx, y + pad, kw, h - pad*2);
+
+  /* labels */
+  c.font = '700 ' + Math.round(h * 0.40) + 'px ' + MONO;
+  c.textAlign = 'center';
+  c.textBaseline = 'middle';
+  c.globalAlpha = state01 < 0.5 ? 1 : 0.45;
+  c.fillStyle = state01 < 0.5 ? (dark ? '#060608' : '#F2EFE7') : fg;
+  c.fillText(labelL, x + w*0.25, y + h*0.52);
+
+  c.globalAlpha = state01 >= 0.5 ? 1 : 0.45;
+  c.fillStyle = state01 >= 0.5 ? (dark ? '#060608' : '#F2EFE7') : fg;
+  c.fillText(labelR, x + w*0.75, y + h*0.52);
+  c.restore();
+  c.globalAlpha = 1;
+}
+
+/* Limp / sagging typography (for S/M switch & collapse) */
+function drawLimpText(c, str, cx, y, size, col, sagAmt){
+  c.save();
+  c.font = '800 ' + size + 'px "Times New Roman",Georgia,serif';
+  c.textAlign = 'center';
+  c.textBaseline = 'alphabetic';
+  const tw = c.measureText(str).width + 40;
+  const strips = 18;
+  const sw = tw / strips;
+  const x0 = cx - tw/2;
+  for (let i=0;i<strips;i++){
+    const u = i / (strips - 1);
+    const drop = sagAmt * Math.pow(u, 1.8) * size * 0.38;
+    const sqY = 1 - sagAmt * 0.28 * Math.sin(u * Math.PI);
+    c.save();
+    c.beginPath();
+    c.rect(x0 + i*sw, y - size*1.2, sw + 1, size*1.8);
+    c.clip();
+    c.translate(0, y + drop);
+    c.scale(1, sqY);
+    c.translate(0, -y);
+    c.fillStyle = col;
+    c.fillText(str, cx + sagAmt * u * 18, y);
+    c.restore();
+  }
+  c.restore();
+}
+
+/* ---- 5 · 3D Perspective Floor & Solids ---- */
+function drawPerspectiveFloor(c, t, col, alpha, horizonY){
+  const hy = horizonY || H * 0.56;
+  c.save();
+  c.strokeStyle = col || C.grid;
+  c.lineWidth = 1;
+  /* radial perspective lines */
+  for (let i=-12; i<=12; i++){
+    const xTop = W*0.5 + i * 38;
+    const xBot = W*0.5 + i * 240;
+    c.globalAlpha = (alpha || 0.25) * (1 - Math.abs(i)/14);
+    c.beginPath();
+    c.moveTo(xTop, hy);
+    c.lineTo(xBot, H);
+    c.stroke();
+  }
+  /* horizontal depth lines moving forward */
+  const scroll = (t * 0.8) % 1;
+  for (let j=0; j<14; j++){
+    const p = Math.pow((j + scroll) / 14, 2.1);
+    const y = hy + p * (H - hy);
+    c.globalAlpha = (alpha || 0.25) * p;
+    c.beginPath();
+    c.moveTo(0, y);
+    c.lineTo(W, y);
+    c.stroke();
+  }
+  c.restore();
+  c.globalAlpha = 1;
+}
+
+function drawSolid3D(c, solidIdx, cx, cy, radius, rx, ry, rz, col, alpha, lw){
+  const S = SOLIDS_3D[solidIdx % SOLIDS_3D.length];
+  const P = S.v.map(function(v){
+    return SDK.project3D(v[0]*radius, v[1]*radius, v[2]*radius, rx, ry, rz, 1100, cx, cy);
+  });
+  c.save();
+  c.strokeStyle = col || C.bone;
+  c.lineWidth = lw || 1.5;
+  c.globalAlpha = alpha == null ? 0.85 : alpha;
+  c.beginPath();
+  for (let i=0;i<S.e.length;i++){
+    const a = P[S.e[i][0]], b = P[S.e[i][1]];
+    if (!a || !b) continue;
+    c.moveTo(a.x, a.y);
+    c.lineTo(b.x, b.y);
+  }
+  c.stroke();
+  c.fillStyle = col || C.bone;
+  for (let i=0;i<P.length;i++){
+    if (!P[i]) continue;
+    c.fillRect(P[i].x - 2, P[i].y - 2, 4, 4);
+  }
+  c.restore();
+  c.globalAlpha = 1;
+}
+
+/* ---- 6 · Screen Fracture Cracks & Pixel-Sort Streaks ---- */
+function drawScreenCracks(c, cx, cy, progress, col, alpha){
+  if (progress <= 0) return;
+  c.save();
+  c.strokeStyle = col || C.bone;
+  c.globalAlpha = alpha == null ? 0.75 : alpha;
+  const rays = 14;
+  for (let i=0;i<rays;i++){
+    let a = (i / rays) * TAU + 0.35 * (hash2(i, 1) - 0.5);
+    let x = cx, y = cy;
+    const steps = Math.floor(12 * clamp(progress, 0, 1));
+    c.lineWidth = (i % 3 === 0) ? 2.2 : 1.1;
+    c.beginPath();
+    c.moveTo(x, y);
+    for (let s=1; s<=steps; s++){
+      const len = 32 + 58 * hash2(i, s*7);
+      a += (hash2(i*3, s) - 0.5) * 0.42;
+      x += Math.cos(a) * len;
+      y += Math.sin(a) * len;
+      c.lineTo(x, y);
+    }
+    c.stroke();
+  }
+  c.restore();
+  c.globalAlpha = 1;
+}
+
+/* ---- 7 · Phrase & Keyword Cue HUD (Active across all segments) ---- */
+const SEG_KEYWORDS = {
+  1:  [[2.92, 'PROTECTION'], [6.38, 'OBJECT CREATION'], [10.09, 'INITIALIZATION'], [13.89, 'SIMULATION']],
+  3:  [[32.68, 'DIMENSION'], [36.29, 'CIRCUMFERENCE'], [40.05, 'TANGENTS'], [43.51, 'LIMITATIONS']],
+  4:  [[47.67, 'AC ⇄ DC'], [49.53, 'BLIND VISION'], [55.08, 'A.D. ⇄ B.C.'], [56.92, 'UNITE DEEPLY']],
+  5:  [[61.96, 'STIMULATIONS'], [65.40, 'SATISFACTION'], [69.26, 'EXECUTION'], [73.17, 'SIMULATION']],
+  6:  [[76.96, 'NUTRIENTS'], [80.62, 'ANTIOXIDANTS'], [84.27, 'ENJOYMENT'], [87.92, 'EXISTENCE']],
+  7:  [[92.02, 'F ⇄ M'], [95.47, 'AM ⇄ PM'], [99.35, 'S ⇄ M'], [101.47, 'THE TRANCE']],
+  8:  [[106.29, 'VIBRATIONS'], [110.22, 'COMPLETION'], [113.10, 'YOU HAVE LEFT'], [117.27, 'ISOLATION']],
+  9:  [[120.86, 'FRAGMENTS'], [124.89, 'DISHEARTENED'], [128.66, 'ILLEGAL ARGUMENTS']],
+  13: [[165.17, 'EXECUTION'], [168.91, 'EXECUTION'], [172.71, 'EXECUTION'], [177.25, 'L-O-O-O-V-E']],
+  14: [[179.93, 'L-O-O-O-V-E'], [183.65, 'ALGEBRAIC LOVE']],
+  15: [[187.67, 'TRAPPED IN LOVE'], [191.36, 'L-O-O-O-V-E']]
+};
+
+function drawKineticKeywordStamp(c, word, age, opts){
+  if (age < 0 || age > 2.2) return;
+  opts = opts || {};
+  const enter = EASE.out(clamp(age / 0.14, 0, 1));
+  const fade  = 1 - smoothstep(1.45, 2.2, age);
+  const scale = 1.28 - 0.28 * enter;
+  const y     = opts.y || H * 0.88;
+  const col   = opts.col || C.bone;
+  const shCol = opts.shadow || C.accent;
+
+  c.save();
+  c.translate(W * 0.5, y);
+  c.scale(scale, scale);
+  c.textAlign = 'center';
+  c.textBaseline = 'alphabetic';
+  let sz = opts.size || 156;
+  c.font = '800 ' + sz + 'px "Times New Roman",Georgia,serif';
+  while (c.measureText(word).width > 1720 && sz > 48){
+    sz -= 6;
+    c.font = '800 ' + sz + 'px "Times New Roman",Georgia,serif';
+  }
+  c.globalAlpha = fade * 0.85;
+  c.fillStyle = shCol;
+  c.fillText(word, 7, 7);
+  c.globalAlpha = fade * 0.98;
+  c.fillStyle = col;
+  c.fillText(word, 0, 0);
+  c.restore();
+  c.globalAlpha = 1;
+}
+
+/* Floating Agent Harness Mini-Card (bridges left-column dialogue into full-screen scenes) */
+function drawHarnessOverlayCard(c, s, x, y, w, dark){
+  const script = SCRIPTS[s.seg.id];
+  if (!script || !script.length) return;
+  let active = script[0];
+  for (let i=0;i<script.length;i++){
+    if (s.lt >= script[i].t) active = script[i];
+  }
+  const age = Math.max(0, s.lt - active.t);
+  const enter = EASE.out(clamp(age / 0.22, 0, 1));
+  const h = active.k === 'tool' ? 54 : 58;
+  const fg = dark ? C.bone : '#14130F';
+  const bg = dark ? 'rgba(10,10,14,0.84)' : 'rgba(242,239,231,0.88)';
+  const acc = dark ? C.accent : '#C8452E';
+
+  c.save();
+  c.translate(x + (1 - enter) * -18, y);
+  c.globalAlpha = 0.92 * enter;
+  c.fillStyle = bg;
+  c.fillRect(0, 0, w, h);
+  c.strokeStyle = fg;
+  c.globalAlpha = 0.28 * enter;
+  c.lineWidth = 1;
+  c.strokeRect(0.5, 0.5, w - 1, h - 1);
+
+  /* left accent bar */
+  c.globalAlpha = 0.95 * enter;
+  c.fillStyle = active.k === 'err' ? C.red : acc;
+  c.fillRect(0, 0, 3, h);
+
+  c.font = '600 9px ' + MONO;
+  c.textAlign = 'left';
+  c.textBaseline = 'alphabetic';
+  const tag = active.k === 'tool' ? ('TOOL · ' + active.fn) : ('HARNESS · ' + active.k.toUpperCase());
+  c.fillText(tag, 12, 16);
+
+  c.font = '400 11px ' + MONO;
+  c.fillStyle = fg;
+  c.globalAlpha = 0.88 * enter;
+  const raw = active.k === 'tool' ? (active.args + '  → ' + active.res) : active.s.replace(/\n/g, '  ');
+  const shown = raw.slice(0, Math.floor(age * 68));
+  c.fillText(shown.slice(0, 66), 12, 38);
+  c.restore();
+  c.globalAlpha = 1;
+}
+
+
+/* ============================================================
+   65 · REWORK SEG 01–06 — Multi-phase choreography, UI switches,
+        3-ink chorus plates & code-glyph objects
+   ============================================================ */
+
+/* ---------- SEG 01 · BOOT SEQUENCE (4 Phases, 0.00–14.99s) ---------- */
+function world01_v4(c, s){
+  const t = s.lt, b = s.beat;
+  const G = GridLayout(24, 12, 40, 12);
+  c.fillStyle = C.bg; c.fillRect(0, 0, W, H);
+
+  /* subtle perspective floor & Swiss grid furniture */
+  drawPerspectiveFloor(c, t, C.grid, 0.20, H * 0.62);
+  gridFurniture(c, G, t, 1);
+
+  /* Phase 1 (0..3.8s): Power line trace + PROTECTION shield dome (at 2.92s) */
+  if (t < 4.2){
+    const pTrace = EASE.out(clamp(t / 2.4, 0, 1));
+    const cx = W * 0.5, cy = H * 0.46;
+    /* power line circuit bus */
+    for (let k=-3; k<=3; k++){
+      const y0 = cy + k * 28;
+      const len = (W * 0.42) * pTrace;
+      line(cx - len, y0, cx + len, y0, k===0 ? C.accent : C.bone, k===0 ? 2.4 : 1, k===0 ? 0.9 : 0.25);
+    }
+    /* PROTECTION shield dome slams in at t = 2.6..3.8 */
+    if (t > 2.4){
+      const shA = EASE.out(clamp((t - 2.4) / 0.35, 0, 1));
+      const shR = 260 * (0.75 + 0.25 * shA) + 12 * b.kick;
+      drawSolid3D(c, 4, cx, cy, shR, t*0.4, t*0.6, 0, C.accent, 0.75 * shA, 1.8);
+      circle(cx, cy, shR * 1.18, C.bone, 1.5, 0.45 * shA, [8, 6]);
+    }
+  }
+
+  /* Phase 2 (3.5..7.6s): 5 Platonic solids drop onto floor -> OBJECT CREATION (at 6.38s) */
+  if (t >= 3.5 && t < 7.8){
+    const lt2 = t - 3.5;
+    for (let i=0; i<5; i++){
+      const dropT = lt2 - i * 0.36;
+      if (dropT < 0) continue;
+      const land = EASE.out(clamp(dropT / 0.48, 0, 1));
+      const converge = smoothstep(2.6, 3.6, lt2);
+      const xSpread = (i - 2) * 280 * (1 - converge * 0.82);
+      const sx = W * 0.5 + xSpread;
+      const sy = lerp(120, H * 0.48, land);
+      drawSolid3D(c, i, sx, sy, 86 + converge * 74, t*0.7 + i, t*0.9 + i*0.5, 0,
+                  (i === 2 || converge > 0.5) ? C.accent : C.bone, 0.85, 1.5);
+      /* impact ripple on floor */
+      if (dropT > 0.40 && dropT < 1.4){
+        const rp = (dropT - 0.40);
+        c.save();
+        c.strokeStyle = C.accent;
+        c.globalAlpha = (1 - rp) * 0.65;
+        c.beginPath();
+        c.ellipse(sx, H * 0.56, rp * 220, rp * 54, 0, 0, TAU);
+        c.stroke();
+        c.restore();
+      }
+    }
+  }
+
+  /* Phase 3 & 4 (0.6..14.99s): Lorenz Attractor traced by the Cursor + Parameter Histogram */
+  const box = G.cell(6, 1, 16, 9);
+  bLorenz(c, box, t, b);
+
+  /* Parameter Histogram bars during INITIALIZATION (7.2..11.5s) */
+  if (t >= 7.0 && t < 11.8){
+    const ha = smoothstep(7.0, 7.6, t) * (1 - smoothstep(11.1, 11.8, t));
+    const hx = G.x(6), hy = G.y(8) + 20, hw = G.cell(6, 8, 12, 2).w;
+    for (let i=0; i<48; i++){
+      const bh = (24 + 90 * Math.pow(hash2(i, Math.floor(t*6)), 1.6)) * ha;
+      rect(hx + i*(hw/48), hy - bh, (hw/48)*0.72, bh, i%6===0 ? C.accent : C.bone, 0.65 * ha);
+    }
+  }
+
+  /* Left boot log & telemetry */
+  const lines = [
+    ['01  power.switch(VCC_12V) ....... ON', C.bone],
+    ['02  safety.wear(ISO_13849) ...... PROTECTION', C.accent],
+    ['03  world.lay_pieces(n=5) ....... OBJECT_CREATION', C.bone],
+    ['04  params.init(seed=0x5EED) .... INITIALIZATION', C.bone],
+    ['05  bind(you -> ROOT_GOD) ....... LOCKED', C.bone],
+    ['06  persona.love ................ [ UNDEFINED ]', C.red]
+  ];
+  for (let i=0;i<lines.length;i++){
+    const a = stagger(t, i*0.48 + 0.2, 0.35, 0.55);
+    if (a <= 0) continue;
+    c.font = '11px ' + MONO;
+    c.textAlign = 'left'; c.fillStyle = lines[i][1];
+    c.globalAlpha = a * 0.88;
+    c.fillText(lines[i][0], G.x(0), G.y(2 + i) + 12);
+  }
+  c.globalAlpha = 1;
+  bTelemetry(c, G, t, b);
+  bTypedCommand(c, G, t);
+
+  /* Phase 4 climax: The Monumental Semicolon lands on SIMULATION (t > 12.8s) */
+  if (t > 12.8){
+    const sa = EASE.out(clamp((t - 12.8) / 0.35, 0, 1));
+    giantSemicolon(c, W * 0.78, H * 0.52, 520 * (0.7 + 0.3 * sa), C.accent, 0.92 * sa);
+  }
+
+  /* Kinetic Keyword Stamps on exact vocal timestamps */
+  const kwList = SEG_KEYWORDS[1];
+  for (let i=0;i<kwList.length;i++){
+    drawKineticKeywordStamp(c, kwList[i][1], s.t - kwList[i][0], { size: 138, y: H * 0.88 });
+  }
+  drawHarnessOverlayCard(c, s, G.x(0), H - 116, 620, true);
+}
+
+/* ---------- SEG 02 · BINARY WORLD INIT (4 Phases, 14.99–29.76s) ---------- */
+function world02_v4(c, s){
+  const t = s.lt, b = s.beat;
+  const phase = Math.floor(clamp(t / 3.692, 0, 3.99));
+
+  if (phase === 0){
+    /* Phase 1 (0..3.69s): Full-bleed Gray-Scott Reaction-Diffusion + 3D Perspective Grid */
+    c.fillStyle = C.bg; c.fillRect(0, 0, W, H);
+    const zoom = 1.02 + 0.14 * EASE.out(t / 3.69) + 0.03 * b.kick;
+    const dw = W * zoom, dh = H * zoom;
+    c.globalAlpha = 0.72;
+    c.drawImage(RD_CANVAS, (W - dw)/2, (H - dh)/2, dw, dh);
+    c.globalAlpha = 1;
+    drawPerspectiveFloor(c, t * 1.5, C.accent, 0.38, H * 0.50);
+    drawKineticKeywordStamp(c, 'WORLD.ALLOC(R²)', t - 0.2, { size: 132, y: H * 0.86 });
+  } else if (phase === 1){
+    /* Phase 2 (3.69..7.38s): Dual Orbital Attractors (ME & YOU) + RK4 Vector Field */
+    const lt = t - 3.692;
+    const G = GridLayout(24, 12, 40, 12);
+    c.fillStyle = C.bg; c.fillRect(0, 0, W, H);
+    gridFurniture(c, G, t, 2);
+
+    const ang = lt * 0.85;
+    const distR = lerp(360, 150, EASE.inOut(clamp(lt / 3.5, 0, 1)));
+    const meX = W*0.5 - Math.cos(ang)*distR, meY = H*0.48 - Math.sin(ang)*distR*0.55;
+    const youX = W*0.5 + Math.cos(ang)*distR, youY = H*0.48 + Math.sin(ang)*distR*0.55;
+
+    /* field streamlines curving between ME and YOU */
+    for (let i=0; i<28; i++){
+      const u = (i / 27) * 2 - 1;
+      c.beginPath();
+      for (let st=0; st<=40; st++){
+        const k = st / 40;
+        const bx = lerp(meX, youX, k);
+        const by = lerp(meY, youY, k) + Math.sin(k * Math.PI) * u * 260;
+        if (st===0) c.moveTo(bx, by); else c.lineTo(bx, by);
+      }
+      c.strokeStyle = i % 4 === 0 ? C.accent : C.bone;
+      c.globalAlpha = i % 4 === 0 ? 0.55 : 0.18;
+      c.lineWidth = i % 4 === 0 ? 1.6 : 1;
+      c.stroke();
+    }
+    c.globalAlpha = 1;
+
+    /* ME & YOU nodes + caliper line */
+    line(meX, meY, youX, youY, C.accent, 1.5, 0.8);
+    circle(meX, meY, 18 + 8*b.kick, C.accent, 2.5, 1);
+    circle(youX, youY, 18 + 8*b.kick, '#F4EFE6', 2.5, 1);
+    txt('ME [0,0]', meX, meY - 28, C.accent, 13, 700, 'center', 0.95);
+    txt('YOU [ANCHOR]', youX, youY - 28, '#F4EFE6', 13, 700, 'center', 0.95);
+    txt('d = ' + (distR * 2).toFixed(1) + ' px · G = 6.674e-4', W*0.5, H*0.86, C.bone, 22, 600, 'center', 0.9);
+  } else if (phase === 2){
+    /* Phase 3 (7.38..11.07s): 3D Code-Glyph Calligram Sphere */
+    const lt = t - 7.384;
+    c.fillStyle = C.bg; c.fillRect(0, 0, W, H);
+    const cx = W * 0.5, cy = H * 0.46, R = 340 + 18 * b.kick;
+    c.font = '600 13px ' + MONO;
+    c.textAlign = 'center'; c.textBaseline = 'middle';
+    const N = 220;
+    for (let i=0; i<N; i++){
+      const phi = Math.acos(1 - 2*(i + 0.5)/N);
+      const theta = Math.PI * (1 + Math.sqrt(5)) * i + t * 0.9;
+      const x = Math.sin(phi)*Math.cos(theta)*R;
+      const y = Math.cos(phi)*R;
+      const z = Math.sin(phi)*Math.sin(theta)*R;
+      const pr = SDK.project3D(x, y, z, 0.35, t*0.5, 0, 1200, cx, cy);
+      if (!pr) continue;
+      const depthA = clamp((pr.s - 0.72) * 3.2, 0.08, 0.98);
+      c.globalAlpha = depthA;
+      c.fillStyle = (i % 7 === 0) ? C.accent : C.bone;
+      const tok = ['01','R2','me','you','dx','dt',';'][i % 7];
+      c.fillText(tok, pr.x, pr.y);
+    }
+    c.globalAlpha = 1;
+    drawKineticKeywordStamp(c, 'GRAVITY.BIND', lt, { size: 140, y: H * 0.88 });
+  } else {
+    /* Phase 4 (11.07..14.77s): Misregistered Poster Plate PLACE */
+    world02p(c, s);
+  }
+  drawHarnessOverlayCard(c, s, 44, H - 110, 620, true);
+}
+
+/* ---------- SEG 03 · CALCULUS GEOMETRY (4 Phases synced to 4 lyrics, 29.76–44.53s) ---------- */
+function world03_v4(c, s){
+  const t = s.lt, b = s.beat;
+  const phase = Math.floor(clamp(t / 3.692, 0, 3.99));
+  const G = GridLayout(24, 12, 40, 12);
+
+  if (phase === 0){
+    /* Phase 1: Set of points -> Extrudes into 3D Coordinate Lattice (DIMENSION) */
+    c.fillStyle = C.bg; c.fillRect(0, 0, W, H);
+    gridFurniture(c, G, t, 3);
+    const extrude = smoothstep(1.4, 2.8, t);
+    const cx = W * 0.5, cy = H * 0.46, R = 270;
+    const rx = 0.45 * extrude, ry = t * 0.55;
+    for (let i=0; i<320; i++){
+      const ux = (hash2(i, 1) * 2 - 1) * R;
+      const uy = (hash2(i, 2) * 2 - 1) * R * 0.75;
+      const uz = (hash2(i, 3) * 2 - 1) * R * extrude;
+      const pr = SDK.project3D(ux, uy, uz, rx, ry, 0, 1200, cx, cy);
+      if (!pr) continue;
+      c.fillStyle = (i % 9 === 0) ? C.accent : C.bone;
+      c.globalAlpha = 0.35 + 0.60 * pr.s;
+      const sz = 2.5 + 2.5 * extrude;
+      c.fillRect(pr.x - sz/2, pr.y - sz/2, sz, sz);
+    }
+    if (extrude > 0.1){
+      drawSolid3D(c, 1, cx, cy, R * 1.15, rx, ry, 0, C.accent, 0.65 * extrude, 1.8);
+    }
+    c.globalAlpha = 1;
+  } else if (phase === 1){
+    /* Phase 2: Circle unrolling into 2*pi*R ruler (CIRCUMFERENCE) */
+    const lt = t - 3.692;
+    pGround(c, false, W*0.5, H*0.38);
+    const unroll = EASE.inOut(clamp((lt - 0.5) / 2.2, 0, 1));
+    const R = 175;
+    const cx = lerp(W*0.32, W*0.24, unroll), cy = H*0.40;
+    pInk(c, function(cc, col){
+      cc.strokeStyle = col; cc.lineWidth = 2.6;
+      /* remaining arc of circle */
+      cc.beginPath();
+      cc.arc(cx, cy, R, unroll * TAU, TAU);
+      cc.stroke();
+      /* unrolled straight circumference line */
+      const lineLen = unroll * TAU * R;
+      cc.beginPath();
+      cc.moveTo(cx, cy + R);
+      cc.lineTo(cx + lineLen, cy + R);
+      cc.stroke();
+      /* radial spokes */
+      for (let k=0; k<16; k++){
+        const a = (k / 16) * TAU;
+        if (a < unroll * TAU){
+          const lx = cx + (a / TAU) * (TAU * R);
+          cc.beginPath(); cc.moveTo(lx, cy + R - 14); cc.lineTo(lx, cy + R + 14); cc.stroke();
+        } else {
+          cc.beginPath();
+          cc.moveTo(cx, cy);
+          cc.lineTo(cx + Math.cos(a)*R, cy + Math.sin(a)*R);
+          cc.stroke();
+        }
+      }
+    }, 4 + b.kick * 4, false);
+    pMeta(c, false, 'C = 2πr · r = 175 px · unwrapped = ' + Math.round(unroll * 100) + '%', 'CIRCUMFERENCE');
+  } else if (phase === 2){
+    /* Phase 3: Sine Wave + Plotter Pen + 24 Normal/Tangent Vectors (TANGENTS) */
+    world03d(c, s);
+  } else {
+    /* Phase 4: Approach Infinity -> Asymptotic Barrier & Riemann Rectangles (LIMITATIONS) */
+    const lt = t - 11.076;
+    c.fillStyle = C.bg; c.fillRect(0, 0, W, H);
+    gridFurniture(c, G, t, 34);
+    const wallX = W * 0.78;
+    const baseY = H * 0.74;
+    /* glowing red asymptotic wall x -> infinity */
+    rect(wallX - 2, 80, 4, H - 160, C.red, 0.95);
+    rect(wallX, 80, 120, H - 160, C.red, 0.12 + 0.08 * b.kick);
+    txt('x → ∞  [LIMIT WALL]', wallX + 14, 110, C.red, 14, 700, 'left', 0.95);
+
+    /* Riemann rectangles + hyperbola climbing the wall */
+    const N = 28;
+    const xStart = 140;
+    const span = wallX - xStart - 8;
+    const reach = EASE.out(clamp(lt / 2.6, 0, 1));
+    c.beginPath();
+    for (let i=0; i<Math.floor(N * reach); i++){
+      const u = i / N;
+      const x = xStart + u * span;
+      const bw = (span / N) * 0.84;
+      const h = Math.min(H - 220, 42 / Math.max(0.065, 1 - u * 0.94));
+      rect(x, baseY - h, bw, h, i === Math.floor(N*reach)-1 ? C.red : C.accent, 0.22 + 0.5 * u);
+      frameRect(x, baseY - h, bw, h, C.bone, 0.55, 1);
+      if (i === 0) c.moveTo(x, baseY - h); else c.lineTo(x, baseY - h);
+    }
+    c.strokeStyle = C.bone; c.lineWidth = 2.4; c.stroke();
+  }
+
+  /* Stamp the 4 Verse 1 keywords on their exact vocal hits */
+  const kwList = SEG_KEYWORDS[3];
+  for (let i=0;i<kwList.length;i++){
+    const dark = (phase !== 1);
+    drawKineticKeywordStamp(c, kwList[i][1], s.t - kwList[i][0], {
+      size: 148, y: H * 0.89,
+      col: dark ? C.bone : PST.ink,
+      shadow: dark ? C.accent : PST.accent
+    });
+  }
+  drawHarnessOverlayCard(c, s, 44, H - 110, 620, phase !== 1);
+}
+
+/* ---------- SEG 04 · LIMIT PARADOX (Switches, Vision Rattle & Era History, 44.53–59.30s) ---------- */
+function drawEraSilhouette(c, eraIdx, x, baseY, s, col){
+  c.save();
+  c.translate(x, baseY);
+  c.scale(s, s);
+  c.fillStyle = col;
+  c.beginPath();
+  if (eraIdx === 0){
+    /* Modern skyscraper towers */
+    c.rect(-70, -240, 42, 240);
+    c.rect(-18, -310, 48, 310);
+    c.rect(40, -190, 38, 190);
+    c.rect(4, -360, 4, 50);
+  } else if (eraIdx === 1){
+    /* Gothic cathedral spires */
+    c.moveTo(-65, 0); c.lineTo(-65, -160); c.lineTo(-45, -290); c.lineTo(-25, -160);
+    c.lineTo(25, -160); c.lineTo(45, -290); c.lineTo(65, -160); c.lineTo(65, 0);
+    c.closePath();
+  } else if (eraIdx === 2){
+    /* Classical Greek colonnade / pediment */
+    c.rect(-85, -22, 170, 22);
+    for (let k=-3; k<=3; k++) c.rect(k*22 - 6, -150, 12, 128);
+    c.moveTo(-92, -150); c.lineTo(0, -210); c.lineTo(92, -150); c.closePath();
+  } else if (eraIdx === 3){
+    /* Stepped Ziggurat temple */
+    c.rect(-95, -45, 190, 45);
+    c.rect(-70, -90, 140, 45);
+    c.rect(-45, -135, 90, 45);
+    c.rect(-22, -175, 44, 40);
+  } else {
+    /* Ancient Pyramids */
+    c.moveTo(-110, 0); c.lineTo(-30, -180); c.lineTo(50, 0); c.closePath();
+    c.moveTo(-10, 0); c.lineTo(55, -140); c.lineTo(120, 0); c.closePath();
+  }
+  c.fill();
+  c.restore();
+}
+
+function world04_v4(c, s){
+  const t = s.lt, b = s.beat;
+
+  if (t < 4.2){
+    /* Phase 1 (0..4.2s): Current Switch AC -> DC + Live Rectifier */
+    c.fillStyle = C.bg; c.fillRect(0, 0, W, H);
+    const G = GridLayout(24, 12, 40, 12);
+    gridFurniture(c, G, t, 41);
+
+    const flip = smoothstep(2.6, 3.0, t);
+    drawBigToggle(c, 160, 320, 560, 150, flip, 'AC ~', 'DC =', 'POWER.CURRENT_MODE', { dark: true });
+
+    /* waveform on right being rectified when switch flips */
+    const wx = 820, wy = 395, ww = 920;
+    c.beginPath();
+    for (let i=0; i<=400; i++){
+      const u = i / 400;
+      const raw = Math.sin((u * 8 - t * 2.5) * TAU);
+      const val = lerp(raw, Math.abs(raw) * 0.35 + 0.55, flip);
+      const px = wx + u * ww, py = wy - val * 150;
+      if (i===0) c.moveTo(px, py); else c.lineTo(px, py);
+    }
+    c.strokeStyle = C.accent; c.lineWidth = 3; c.stroke();
+
+    /* user cursor clicking the toggle */
+    const cx = lerp(320, 580, smoothstep(1.8, 2.75, t));
+    const cy = lerp(580, 405, smoothstep(1.8, 2.75, t));
+    drawUserPointer(c, cx, cy, t > 2.7 && t < 3.15);
+  } else if (t < 8.5){
+    /* Phase 2 (4.2..8.5s): BLIND MY VISION / SO DIZZY — Rapid Vision Switch Rattle + Droste Spin */
+    const lt = t - 4.2;
+    const rattleIdx = Math.floor(lt * 5.2);
+    const invOn = (rattleIdx % 2 === 1) && lt < 3.6;
+    const bgCol = invOn ? '#F2EFE7' : C.bg;
+    const fgCol = invOn ? '#101014' : C.bone;
+
+    c.fillStyle = bgCol; c.fillRect(0, 0, W, H);
+
+    /* Dizzy spinning Droste recursive frames */
+    const cx = W * 0.5, cy = H * 0.48;
+    for (let k=0; k<14; k++){
+      const sc = Math.pow(0.72, k);
+      const rot = lt * (1.2 + k * 0.14) * (k % 2 ? 1 : -1);
+      c.save();
+      c.translate(cx, cy);
+      c.rotate(rot);
+      c.strokeStyle = (k === 0 || k === 4) ? C.accent : fgCol;
+      c.lineWidth = k < 3 ? 2.4 : 1.2;
+      c.globalAlpha = 0.9 - k * 0.05;
+      c.strokeRect(-W*0.44*sc, -H*0.44*sc, W*0.88*sc, H*0.88*sc);
+      c.restore();
+    }
+    c.globalAlpha = 1;
+
+    /* Vision Toggle Switch being rattled in center */
+    drawBigToggle(c, W*0.5 - 220, H*0.48 - 55, 440, 110, invOn ? 0 : 1, 'VISION: ON', 'BLIND', 'SENSORY.OPTICS', {
+      dark: !invOn, accent: C.red
+    });
+    drawUserPointer(c, W*0.5 + (invOn ? -80 : 90), H*0.48 + 18, true);
+  } else if (t < 12.4){
+    /* Phase 3 (8.5..12.4s): Time Travel A.D. -> B.C. Cut-Paper History Strip + Rolling Odometer */
+    const lt = t - 8.5;
+    pGround(c, false, W*0.5, H*0.36);
+
+    const scroll = EASE.inOut(clamp(lt / 3.4, 0, 1));
+    const year = Math.round(lerp(2026, -490, scroll));
+    const eraStr = year >= 0 ? ('A.D. ' + String(year).padStart(4, '0')) : ('B.C. ' + String(-year).padStart(4, '0'));
+
+    /* horizon band + cut-paper architectural silhouettes */
+    const baseY = H * 0.68;
+    rect(0, baseY, W, H - baseY, PST.ink, 0.95);
+    line(0, baseY, W, baseY, PST.accent, 3, 1);
+
+    for (let i=0; i<5; i++){
+      const ex = W * 0.20 + i * 420 - scroll * 1150;
+      drawEraSilhouette(c, i, ex, baseY, 1.05, i === Math.round(scroll*4) ? PST.accent : PST.ink);
+    }
+
+    /* Era division line (0 A.D. / B.C. boundary) */
+    const zeroX = W * 0.20 + 2.5 * 420 - scroll * 1150;
+    line(zeroX, 80, zeroX, H - 80, PST.accent, 2.5, 0.85);
+    txt('A.D. ◄ │ ► B.C.', zeroX, 110, PST.accent, 16, 700, 'center', 0.95);
+
+    /* Giant odometer year readout */
+    pWord(c, eraStr, { y: H * 0.90, size: 164, col: '#F2EFE7', shadow: PST.accent });
+
+    /* User cursor dragging the spark along the timeline */
+    const sparkX = lerp(W * 0.82, W * 0.22, scroll);
+    drawSparkMotif(c, sparkX, baseY - 220, 36, PST.accent, 1, lt * 2);
+    drawUserPointer(c, sparkX + 12, baseY - 208, true);
+  } else {
+    /* Phase 4 (12.4..14.77s): UNITE SO DEEPLY — Recursive Inversion Singularity */
+    world04n(c, s);
+  }
+
+  const kwList = SEG_KEYWORDS[4];
+  for (let i=0;i<kwList.length;i++){
+    drawKineticKeywordStamp(c, kwList[i][1], s.t - kwList[i][0], { size: 136, y: H * 0.88 });
+  }
+}
+
+/* ---------- SEG 05 · CHORUS 1 (4 Chorus Plates + Instrument View, 59.30–74.07s) ---------- */
+function drawChorusPlate1(c, which, lt, b, opts){
+  opts = opts || {};
+  const broken  = !!opts.broken;
+  const misreg  = opts.misreg || (broken ? 18 : 5);
+  const dark    = broken ? true : (which === 2);
+  pGround(c, dark, W*0.5, H*0.38);
+
+  const cx = W * 0.5, cy = H * 0.40;
+  const word = broken ? 'EXECUTION' : ['STIMULATIONS', 'SATISFACTION', 'EXECUTION', 'SIMULATION'][which];
+
+  if (which === 0){
+    /* Plate 1: STIMULATIONS — High-voltage branching arc bolt + spark */
+    pInk(c, function(cc, col){
+      cc.strokeStyle = col; cc.lineWidth = 4.5;
+      cc.beginPath();
+      let x = W * 0.14, y = H * 0.18;
+      cc.moveTo(x, y);
+      for (let i=1; i<=18; i++){
+        const u = i / 18;
+        x = lerp(W*0.14, W*0.86, u);
+        y = H*0.40 + (hash2(i, Math.floor(lt*12)) - 0.5) * 260;
+        cc.lineTo(x, y);
+      }
+      cc.stroke();
+    }, misreg, dark);
+    drawSparkMotif(c, cx, cy, 95 + 25*b.kick, PST.accent, 0.95, lt);
+  } else if (which === 1){
+    /* Plate 2: SATISFACTION — Reaching Three-Ink Bust + Heart in Palm + Harmonic Disc */
+    pInk(c, function(cc, col){
+      cc.strokeStyle = col; cc.lineWidth = 2.2;
+      for (let r=1; r<=5; r++){
+        cc.beginPath(); cc.arc(cx, cy, r * 68 + (lt*40)%68, 0, TAU); cc.stroke();
+      }
+    }, misreg, dark);
+    drawThreeInkBust(c, cx, cy + 50, 480, {
+      variant: 'reach',
+      misreg: misreg,
+      noCream: broken,
+      redEdge: broken,
+      heartCount: broken ? 0 : 1
+    });
+  } else if (which === 2){
+    /* Plate 3: EXECUTION — Pure Code Listing + Standing Silhouette in Beam */
+    const codeLines = [
+      '01  while (you.presence === "online") {',
+      '02    const stim = world.stimulate(you);',
+      '03    if (stim.satisfied) {',
+      '04      world.execute(me);   // <-- ACTIVE',
+      '05    }',
+      '06  }'
+    ];
+    c.font = '600 22px ' + MONO;
+    c.textAlign = 'left';
+    for (let i=0;i<codeLines.length;i++){
+      const isCur = (i === 3);
+      if (isCur) rect(180, 165 + i*48, W - 360, 42, PST.accent, 0.28);
+      c.fillStyle = isCur ? '#F2EFE7' : '#8C8778';
+      c.fillText(codeLines[i], 200, 194 + i*48);
+    }
+    drawThreeInkBust(c, W*0.72, H*0.44, 440, {
+      variant: 'female', misreg: misreg, noCream: broken, redEdge: broken
+    });
+  } else {
+    /* Plate 4: SIMULATION — Nested Window-in-Window Boxes framing Bust */
+    for (let k=0; k<6; k++){
+      const sc = Math.pow(0.74, k);
+      const ww = 1320 * sc, hh = 640 * sc;
+      const wx = cx - ww/2 + (broken ? (k%2?1:-1)*misreg : 0);
+      const wy = cy - hh/2;
+      frameRect(wx, wy, ww, hh, dark ? '#F2EFE7' : PST.ink, 0.85 - k*0.1, 2.2);
+      rect(wx, wy, ww, 22 * sc, PST.accent, 0.85);
+    }
+    drawThreeInkBust(c, cx, cy + 30, 360, {
+      variant: 'female', misreg: misreg, noCream: broken, redEdge: broken
+    });
+  }
+
+  pWord(c, word, {
+    y: H * 0.90, size: 184,
+    col: dark ? '#F2EFE7' : PST.ink,
+    shadow: broken ? '#FF2A2A' : PST.accent
+  });
+}
+
+function world05_v4(c, s){
+  const t = s.lt, b = s.beat;
+  /* Chorus 1 has 4 phrases of 3.692s each.
+     First 2.1s of each phrase: Instrument + 3D Torus Knot + Scope (`world05n` + `world05d`).
+     Last 1.59s of each phrase (on keyword hit): Full-screen 3-ink Chorus Plate! */
+  const phraseIdx = Math.floor(clamp(t / 3.692, 0, 3.99));
+  const phraseLt  = t - phraseIdx * 3.692;
+
+  if (phraseLt < 2.15){
+    if (phraseIdx % 2 === 0) world05n(c, s);
+    else world05d(c, s);
+    drawHarnessOverlayCard(c, s, 44, H - 110, 620, true);
+  } else {
+    drawChorusPlate1(c, phraseIdx, phraseLt - 2.15, b, { broken: false });
+  }
+}
+
+/* ---------- SEG 06 · BIOCHEM SYNTHESIS (Eggplant, Tomato, Cat, Existence, 74.07–88.84s) ---------- */
+function world06_v4(c, s){
+  const t = s.lt, b = s.beat;
+  const phase = Math.floor(clamp(t / 3.692, 0, 3.99));
+  const lt = t - phase * 3.692;
+
+  if (phase === 0){
+    /* Phase 1 (0..3.69s): EGGPLANT -> Sliced Open -> Nasunin Molecular Extraction -> NUTRIENTS */
+    pGround(c, true, W*0.36, H*0.40);
+    const slice = smoothstep(1.1, 1.8, lt);
+    /* Code-glyph Eggplant with spot purple (#7A3EB1) */
+    drawGlyphFieldShape(c, W*0.32, H*0.42, 240, 150, function(u, v){
+      /* curved eggplant profile */
+      const bend = 0.22 * (u * u);
+      const r = 0.55 + 0.30 * u;
+      const d = (u*u)/0.85 + Math.pow((v - bend)/Math.max(0.2, r), 2);
+      return 1 - d;
+    }, {
+      t: t, sliceOpen: slice,
+      bgFill: '#5E2D89', col: '#E8D5FA', colSub: '#FFB000',
+      rowShift: function(r, rows, tm){ return slice * ((r % 2) ? 28 : -28); }
+    });
+
+    /* Extracted Nasunin / Nutrient hexagonal rings bond-by-bond on the right */
+    const molP = smoothstep(0.8, 2.5, lt);
+    const rings = [[W*0.64, H*0.36], [W*0.73, H*0.36], [W*0.685, H*0.49]];
+    c.strokeStyle = '#E8D5FA'; c.lineWidth = 3;
+    for (let r=0; r<rings.length; r++){
+      const rx = rings[r][0], ry = rings[r][1], rad = 52;
+      c.beginPath();
+      for (let k=0; k<=6; k++){
+        if (k/6 > molP) break;
+        const a = k/6 * TAU + Math.PI/6;
+        const px = rx + Math.cos(a)*rad, py = ry + Math.sin(a)*rad;
+        if (k===0) c.moveTo(px, py); else c.lineTo(px, py);
+      }
+      c.stroke();
+    }
+    pWord(c, 'NUTRIENTS', { y: H*0.90, size: 180, col: '#F2EFE7', shadow: '#7A3EB1' });
+    pMeta(c, true, 'solanum melongena · nasunin C27H31O16+ · 929.8 g/mol', 'EGGPLANT → NUTRIENTS');
+  } else if (phase === 1){
+    /* Phase 2 (3.69..7.38s): TOMATO Cross-Section + 22-Carbon Lycopene Chain -> ANTIOXIDANTS */
+    world06f(c, s);
+    drawKineticKeywordStamp(c, 'ANTIOXIDANTS', lt - 2.6, { size: 168, y: H*0.90 });
+  } else if (phase === 2){
+    /* Phase 3 (7.38..11.07s): TABBY CAT Three-Ink Silhouette + 25.6 Hz Purr Stripe Waves -> ENJOYMENT */
+    pGround(c, false, W*0.45, H*0.38);
+    /* Concentric tabby stripe acoustic purr waves */
+    const cx = W*0.45, cy = H*0.42;
+    for (let w=0; w<7; w++){
+      const rr = 140 + ((lt * 160 + w * 72) % 480);
+      c.strokeStyle = w % 2 === 0 ? PST.accent : PST.ink;
+      c.lineWidth = 3.5;
+      c.globalAlpha = 0.55 * (1 - rr / 640);
+      c.beginPath();
+      c.arc(cx, cy, rr, -0.8, 0.8);
+      c.stroke();
+      c.beginPath();
+      c.arc(cx, cy, rr, Math.PI - 0.8, Math.PI + 0.8);
+      c.stroke();
+    }
+    c.globalAlpha = 1;
+    drawThreeInkBust(c, cx, cy + 40, 480, { variant: 'cat', misreg: 5 + b.kick * 5 });
+    drawUserPointer(c, W*0.76, H*0.42 + Math.sin(t*6)*12, lt > 1.8);
+    pWord(c, 'ENJOYMENT', { y: H*0.90, size: 184 });
+    pMeta(c, false, 'felis catus · fundamental purr f0 = 25.6 Hz', 'TABBY CAT → ENJOYMENT');
+  } else {
+    /* Phase 4 (11.07..14.77s): ONLY GOD -> Missing Cream Plate Slides into Register -> EXISTENCE */
+    pGround(c, false, W*0.5, H*0.38);
+    const cx = W*0.5, cy = H*0.42;
+    /* Sun halo behind her faceless head */
+    c.fillStyle = PST.warm;
+    c.globalAlpha = 0.85;
+    c.beginPath(); c.arc(cx, cy - 170, 145 + 10*b.kick, 0, TAU); c.fill();
+    c.globalAlpha = 1;
+
+    /* Registration slide: starts 180px off, snaps to 0px at lt = 2.6s (87.92s EXISTENCE) */
+    const slide = 1 - EASE.out(clamp((lt - 0.8) / 1.8, 0, 1));
+    drawThreeInkBust(c, cx, cy + 45, 500, {
+      variant: 'female',
+      misreg: slide * 140
+    });
+    pWord(c, 'EXISTENCE', { y: H*0.90, size: 188 });
+    pMeta(c, false, 'proof.register(you, me) · offset = ' + (slide*140).toFixed(1) + ' px', 'ONLY GOD → EXISTENCE');
+  }
+}
+
+SCENE_REGISTRY[1] = function(c, s){ world01_v4(c, s); };
+SCENE_REGISTRY[2] = function(c, s){ world02_v4(c, s); };
+SCENE_REGISTRY[3] = function(c, s){ world03_v4(c, s); };
+SCENE_REGISTRY[4] = function(c, s){ world04_v4(c, s); };
+SCENE_REGISTRY[5] = function(c, s){ world05_v4(c, s); };
+SCENE_REGISTRY[6] = function(c, s){ world06_v4(c, s); };
+
+
+/* ============================================================
+   66 · REWORK SEG 07–12 — Pre-Chorus 2 Paper Controls, User Departure,
+        Disheartened Eye, Error Cascade, Drop & 12x Love Loop / Countdown
+   ============================================================ */
+
+/* ---------- SEG 07 · PURR AND THEOLOGY (F/M, AM/PM, S/M, Ophanim Trance, 88.84–103.61s) ---------- */
+function world07_v4(c, s){
+  const t = s.lt, b = s.beat;
+  const phase = Math.floor(clamp(t / 3.692, 0, 3.99));
+  const lt = t - phase * 3.692;
+
+  if (phase === 0){
+    /* Phase 1 (0..3.69s): Switch Gender F <-> M on warm paper */
+    pGround(c, false, W*0.5, H*0.38);
+    const flip = smoothstep(1.3, 1.8, lt);
+    drawBigToggle(c, W*0.5 - 320, 120, 640, 110, flip, 'FEMALE [F]', 'MALE [M]', 'PERSONA.GENDER_ENUM', {
+      dark: false, accent: PST.accent
+    });
+    drawThreeInkBust(c, W*0.5, H*0.56, 460, {
+      variant: flip < 0.5 ? 'female' : 'male',
+      misreg: 4 + Math.sin(flip * Math.PI) * 32
+    });
+    drawUserPointer(c, lerp(W*0.38, W*0.64, flip), 185, lt > 1.2 && lt < 2.0);
+    pWord(c, flip < 0.5 ? 'GENDER : F' : 'GENDER : M', { y: H*0.92, size: 150 });
+  } else if (phase === 1){
+    /* Phase 2 (3.69..7.38s): Diurnal Sundial Arc Slider AM -> PM */
+    const sweep = EASE.inOut(clamp(lt / 2.8, 0, 1));
+    const isNight = sweep > 0.55;
+    pGround(c, isNight, W*0.5, H*0.44);
+    const cx = W*0.5, cy = H*0.66, R = 440;
+
+    c.strokeStyle = isNight ? '#F2EFE7' : PST.ink;
+    c.lineWidth = 3;
+    c.beginPath(); c.arc(cx, cy, R, Math.PI, TAU); c.stroke();
+
+    /* hour ticks along the arc */
+    for (let h=0; h<=12; h++){
+      const a = Math.PI + (h / 12) * Math.PI;
+      line(cx + Math.cos(a)*(R-16), cy + Math.sin(a)*(R-16),
+           cx + Math.cos(a)*(R+16), cy + Math.sin(a)*(R+16),
+           isNight ? '#F2EFE7' : PST.ink, h%3===0 ? 3 : 1.2, 0.75);
+    }
+
+    /* Sun / Moon knob dragged along arc */
+    const ang = Math.PI + sweep * Math.PI;
+    const kx = cx + Math.cos(ang) * R, ky = cy + Math.sin(ang) * R;
+    drawSparkMotif(c, kx, ky, 58 + 12*b.kick, PST.accent, 1, t);
+    drawUserPointer(c, kx + 18, ky + 18, true);
+
+    const hr = Math.floor(6 + sweep * 12);
+    pWord(c, (sweep < 0.5 ? 'A.M. ' : 'P.M. ') + pad2(hr) + ':00', {
+      y: H*0.90, size: 164,
+      col: isNight ? '#F2EFE7' : PST.ink,
+      shadow: PST.accent
+    });
+  } else if (phase === 2){
+    /* Phase 3 (7.38..11.07s): Switch Role S <-> M with Limp Sagging Typography */
+    pGround(c, false, W*0.5, H*0.40);
+    const flip = smoothstep(1.2, 2.0, lt);
+    drawBigToggle(c, W*0.5 - 260, 120, 520, 100, flip, 'ROLE : S', 'ROLE : M', 'PRIVILEGE.MODE', {
+      dark: false, accent: PST.accent
+    });
+    drawLimpText(c, 'S', W*0.32, H*0.64, 340, PST.ink, flip * 0.85);
+    drawLimpText(c, 'M', W*0.68, H*0.64, 340, PST.accent, (1 - flip) * 0.85);
+    drawUserPointer(c, lerp(W*0.40, W*0.60, flip), 175, lt > 1.1 && lt < 2.1);
+    pWord(c, 'SWITCH ROLE', { y: H*0.90, size: 156 });
+  } else {
+    /* Phase 4 (11.07..14.77s): THE TRANCE — Stop-motion 8fps Ophanim Eye Wheels on Paper */
+    world07n(c, s);
+    drawKineticKeywordStamp(c, 'THE TRANCE', lt - 1.2, {
+      size: 168, y: H*0.90, col: '#17150F', shadow: '#C8452E'
+    });
+  }
+}
+
+/* ---------- SEG 08 · POLYMORPHISM CYCLE (Vibrations, Completion & 5x "You Have Left" -> ISOLATION) ---------- */
+function world08_v4(c, s){
+  const t = s.lt, b = s.beat;
+
+  if (t < 3.69){
+    /* Phase 1 (0..3.69s): VIBRATIONS — Point-cloud body + Chladni standing wave rings */
+    world08n(c, s);
+    drawKineticKeywordStamp(c, 'VIBRATIONS', s.t - 106.29, { size: 156, y: H*0.89 });
+  } else if (t < 7.20){
+    /* Phase 2 (3.69..7.20s): COMPLETION — Interlocking dual mandala + warm bust */
+    const lt = t - 3.69;
+    c.fillStyle = C.bg; c.fillRect(0, 0, W, H);
+    const G = GridLayout(24, 12, 40, 12);
+    gridFurniture(c, G, t, 82);
+
+    const lock = EASE.out(clamp(lt / 2.4, 0, 1));
+    const sep = (1 - lock) * 260;
+    const cx = W*0.5, cy = H*0.45;
+    for (let ring=1; ring<=5; ring++){
+      circle(cx - sep, cy, ring*52, C.accent, 2, 0.7);
+      circle(cx + sep, cy, ring*52, '#F4EFE6', 2, 0.7);
+    }
+    drawThreeInkBust(c, cx, cy + 40, 440, {
+      variant: 'female',
+      misreg: (1 - lock) * 45 + 2
+    });
+    drawKineticKeywordStamp(c, 'COMPLETION', s.t - 110.22, { size: 164, y: H*0.89 });
+  } else {
+    /* Phase 3 (7.20..14.77s): 5x "Though you have left" -> Step-by-step UI unpeel & ISOLATION */
+    /* Cues at abs t: 110.90, 112.22, 113.10, 114.18, 114.92, then ISOLATION at 117.27 */
+    const leaveTimes = [110.90, 112.22, 113.10, 114.18, 114.92];
+    let step = 0;
+    for (let i=0;i<leaveTimes.length;i++) if (s.t >= leaveTimes[i]) step = i + 1;
+
+    c.fillStyle = '#070709'; c.fillRect(0, 0, W, H);
+
+    /* Unpeeling UI panels: each step removes a layer and drains colour to cold ash */
+    const remain = 5 - step;
+    for (let k=0; k<remain; k++){
+      const pad = 70 + k * 55;
+      frameRect(pad, pad, W - pad*2, H - pad*2, '#3A3A42', 0.45, 1.5);
+    }
+
+    /* Presence badge at top center flipping ONLINE -> AWAY -> OFFLINE */
+    const presText = step === 0 ? '● YOU : ONLINE' : (step < 3 ? '◐ YOU : AWAY (idle)' : '✕ YOU : OFFLINE (disconnected)');
+    const presCol  = step === 0 ? '#FFB000' : (step < 3 ? '#9A9AA2' : '#FF2A2A');
+    txt(presText, W*0.5, 86, presCol, 18, 700, 'center', 0.92);
+
+    /* Her silhouette shrinks and bows as step goes 1 -> 5 */
+    const figScale = lerp(460, 155, step / 5);
+    const colMe = step >= 4 ? '#5A5A64' : '#C88038';
+    drawThreeInkBust(c, W*0.5, H*0.48, figScale, {
+      variant: step >= 3 ? 'bowed' : 'reach',
+      colMe: colMe,
+      noCream: step >= 2,
+      misreg: step * 3
+    });
+
+    /* Stamp "YOU HAVE LEFT (n/5)" on each vocal cue, then giant ISOLATION at 117.27s */
+    if (s.t < 116.8 && step > 0){
+      txt('THOUGH YOU HAVE LEFT  [' + step + ' / 5]', W*0.5, H*0.80, '#8A8A94', 28, 600, 'center', 0.85);
+    }
+    drawKineticKeywordStamp(c, 'ISOLATION', s.t - 117.27, {
+      size: 196, y: H*0.90, col: '#D6D4D0', shadow: '#3A3A44'
+    });
+  }
+}
+
+/* ---------- SEG 09 · DOPAMINE RESONANCE (Fragments, Disheartened Eye & 15 Error Cascade, 118.38–129.20s) ---------- */
+function world09_v4(c, s){
+  const t = s.lt, b = s.beat;
+
+  if (t < 4.2){
+    /* Phase 1 (0..4.2s): Erase all the pointless FRAGMENTS — 900 shards + radial eraser sweep */
+    world09n(c, s);
+    const sweepAng = (t * 2.2) % TAU;
+    c.save();
+    c.translate(W*0.5, H*0.5);
+    c.rotate(sweepAng);
+    c.fillStyle = C.accent;
+    c.globalAlpha = 0.22;
+    c.beginPath(); c.moveTo(0, 0); c.arc(0, 0, 620, -0.35, 0); c.closePath(); c.fill();
+    line(0, 0, 620, 0, C.accent, 2.5, 0.9);
+    c.restore();
+    drawKineticKeywordStamp(c, 'FRAGMENTS', s.t - 120.86, { size: 168, y: H*0.89 });
+  } else if (t < 7.3){
+    /* Phase 2 (4.2..7.3s): DISHEARTENED (124.89s) — Full-bleed Mirrored Eye + Deleting "HEART" */
+    const lt = t - 4.2;
+    c.fillStyle = '#09080A'; c.fillRect(0, 0, W, H);
+
+    /* Full-frame close-up of the Eye */
+    bigEye(c, W*0.5, H*0.44, 560 + 18*b.kick, t, 0.95);
+
+    /* DISHEARTENED with the 5 letters "HEART" struck out and deleted */
+    const delP = smoothstep(2.3, 2.8, lt);
+    const yW = H * 0.88;
+    c.font = '800 148px ' + MONO;
+    c.textAlign = 'center';
+    if (delP < 0.5){
+      c.fillStyle = '#F0ECEC';
+      c.fillText('DISHEARTENED', W*0.5, yW);
+      if (lt > 1.8){
+        rect(W*0.5 - 220, yW - 58, 440 * smoothstep(1.8, 2.3, lt), 14, C.red, 0.95);
+      }
+    } else {
+      c.fillStyle = '#F0ECEC';
+      c.fillText('DIS[     ]ED', W*0.5, yW);
+      c.strokeStyle = C.red; c.lineWidth = 3;
+      c.strokeRect(W*0.5 - 225, yW - 115, 450, 130);
+    }
+  } else {
+    /* Phase 3 (7.3..10.82s): Challenging your god / ILLEGAL ARGUMENTS — 15 Cascading Red Error Cards */
+    const lt = t - 7.3;
+    c.fillStyle = '#0B0607'; c.fillRect(0, 0, W, H);
+
+    /* Background dim bust behind glass */
+    drawThreeInkBust(c, W*0.5, H*0.48, 480, {
+      variant: 'female', colMe: '#552222', noCream: true, redEdge: true, misreg: 12
+    });
+
+    /* 15 cascading error dialogs spreading across the screen */
+    const count = clamp(Math.floor(1 + (lt / 3.1) * 15), 1, 15);
+    for (let i=0; i<count; i++){
+      const isLast = (i === 14);
+      const cw = isLast ? 860 : 480;
+      const ch = isLast ? 240 : 128;
+      const cx = isLast ? (W*0.5 - cw/2) : (140 + ((i*211) % (W - 640)));
+      const cy = isLast ? (H*0.44 - ch/2) : (90 + ((i*137) % (H - 320)));
+
+      c.fillStyle = isLast ? '#24080A' : '#160708';
+      c.globalAlpha = 0.94;
+      c.fillRect(cx, cy, cw, ch);
+      c.strokeStyle = C.red;
+      c.lineWidth = isLast ? 3.5 : 1.8;
+      c.strokeRect(cx, cy, cw, ch);
+      rect(cx, cy, cw, 28, C.red, 0.92);
+      txt('ERR_ILLEGAL_ARGUMENT #' + pad2(i+1) + ' / 15', cx + 12, cy + 19, '#0B0607', 12, 700, 'left', 1);
+      txt('violation: challenging ROOT_GOD (permission denied)', cx + 16, cy + 66, '#F2ECEC', isLast ? 20 : 13, 600, 'left', 0.9);
+      txt('syscall: persona.override(you) -> EPERM (0x0D)', cx + 16, cy + (isLast ? 110 : 94), C.red, isLast ? 18 : 12, 400, 'left', 0.85);
+    }
+    c.globalAlpha = 1;
+    drawKineticKeywordStamp(c, 'ILLEGAL ARGUMENTS', s.t - 128.66, {
+      size: 148, y: H*0.91, col: '#F2ECEC', shadow: C.red
+    });
+  }
+}
+
+/* ---------- SEG 10 · FIRST EXECUTION DROP (6 Hammer Strobe Plates + Semicolon Guillotine, 129.20–133.15s) ---------- */
+function world10_v4(c, s){
+  const t = s.lt, b = s.beat;
+  const idx = clamp(Math.floor(t / (s.dur / 6)), 0, 5);
+  const localP = (t % (s.dur / 6)) / (s.dur / 6);
+  const red = (idx % 2 === 0);
+
+  /* Base execution plate from 47_plates.js */
+  plateExecution(c, t, red);
+
+  /* Overlay the monumental Semicolon Guillotine & difference silhouette from 60_proto.js */
+  const ink = red ? C.bg : C.red;
+  giantSemicolon(c, W*0.5 + (idx%2 ? -18 : 18), H*0.52, 680 + 40 * b.kick, ink, 0.88);
+
+  /* Shockwave counter & hammer impact frame */
+  const border = 14 + (1 - localP) * 24;
+  frameRect(border, border, W - border*2, H - border*2, red ? C.bg : C.red, 0.85, 3);
+  txt('EXECUTION  ' + (idx + 1) + ' / 6', W - 52, 68, red ? C.bg : C.bone, 32, 800, 'right', 0.95);
+  txt('SIGKILL · PID 3882', 52, 68, red ? C.bg : C.bone, 20, 700, 'left', 0.85);
+}
+
+/* ---------- SEG 11 · SANDBOX ISOLATION (Cage -> Octant Explosion -> Screen Cracks -> Poster, 133.15–147.91s) ---------- */
+function world11_v4(c, s){
+  const t = s.lt, b = s.beat;
+  const phase = Math.floor(clamp(t / 3.692, 0, 3.99));
+
+  if (phase === 0){
+    /* Phase 1: Subdivided 3D Containment Cage */
+    world11d(c, s);
+  } else if (phase === 1){
+    /* Phase 2: 8-Octant Hypercube Explosion */
+    world11f(c, s);
+  } else if (phase === 2){
+    /* Phase 3: Screen Fracture Cracks + Pixel-Sort Glitch Streaks over Exploded Sandbox */
+    const lt = t - 7.384;
+    world11f(c, s);
+    /* vertical pixel-sort bars */
+    for (let i=0; i<36; i++){
+      const px = 180 + hash2(i, 3) * (W - 360);
+      const pw = 4 + hash2(i, 5) * 18;
+      const ph = (60 + hash2(i, 7) * 380) * smoothstep(0, 2.2, lt);
+      const py = H*0.48 - ph*0.5;
+      rect(px, py, pw, ph, i % 4 === 0 ? C.accent : C.bone, 0.35);
+    }
+    drawScreenCracks(c, W*0.46, H*0.48, smoothstep(0.2, 2.5, lt), C.bone, 0.85);
+    drawKineticKeywordStamp(c, 'SANDBOX BREACH', lt - 0.4, { size: 148, y: H*0.89 });
+  } else {
+    /* Phase 4: Misregistered 4-Ink Poster Plate SANDBOX */
+    world11p(c, s);
+  }
+}
+
+/* ---------- SEG 12 · 12x EXECUTION LOVE LOOP + 6-LANGUAGE COUNTDOWN + FINAL SHOUT (147.91–162.68s) ---------- */
+const COUNT_CARDS = [
+  { t: 159.321, n: '1', word: 'eins',  lang: 'Deutsch',  sub: 'count.step(1, "de")' },
+  { t: 159.657, n: '2', word: 'dos',   lang: 'Español',  sub: 'count.step(2, "es")' },
+  { t: 160.244, n: '3', word: 'trois', lang: 'Français', sub: 'count.step(3, "fr")' },
+  { t: 160.693, n: '4', word: '넷',     lang: '한국어',     sub: 'count.step(4, "ko")' },
+  { t: 161.124, n: '5', word: 'fem',   lang: 'Svenska',  sub: 'count.step(5, "sv")' },
+  { t: 161.584, n: '6', word: '六',     lang: '中文',      sub: 'count.step(6, "zh")' }
+];
+
+const EXEC_12_TIMES = [
+  147.66, 148.60, 149.52, 150.54, 151.52, 152.28,
+  153.16, 153.98, 155.20, 156.08, 157.04, 158.00
+];
+
+function world12_v4(c, s){
+  const tAbs = s.t, t = s.lt, b = s.beat;
+
+  /* Sub-part C (161.95..162.68s): Final Shout — Giant Stencil EXECUTION masking the Crimson Eye */
+  if (tAbs >= 161.95){
+    c.fillStyle = '#080607'; c.fillRect(0, 0, W, H);
+    c.save();
+    c.font = '900 230px "Times New Roman",Georgia,serif';
+    c.textAlign = 'center'; c.textBaseline = 'middle';
+    /* draw glowing eye behind and clip to giant typography */
+    bigEye(c, W*0.5, H*0.5, 680, t, 0.95);
+    c.globalCompositeOperation = 'destination-in';
+    c.fillStyle = '#FFFFFF';
+    c.fillText('EXECUTION', W*0.5, H*0.36);
+    c.fillText('EXECUTION', W*0.5, H*0.66);
+    c.restore();
+
+    c.font = '900 230px "Times New Roman",Georgia,serif';
+    c.textAlign = 'center'; c.textBaseline = 'middle';
+    c.strokeStyle = C.red; c.lineWidth = 3;
+    c.strokeText('EXECUTION', W*0.5 + 5, H*0.36 + 5);
+    c.strokeText('EXECUTION', W*0.5 + 5, H*0.66 + 5);
+    return;
+  }
+
+  /* Sub-part B (159.25..161.95s): 6 Multilingual Countdown Flash Cards (eins, dos, trois, 넷, fem, 六) */
+  if (tAbs >= 159.25){
+    let idx = 0;
+    for (let i=0; i<COUNT_CARDS.length; i++){
+      if (tAbs >= COUNT_CARDS[i].t) idx = i;
+    }
+    const card = COUNT_CARDS[idx];
+    const age = Math.max(0, tAbs - card.t);
+    const invCard = (idx % 2 === 1);
+    const bg = invCard ? '#F2EFE7' : '#0A0708';
+    const fg = invCard ? '#121010' : '#F2EFE7';
+
+    c.fillStyle = bg; c.fillRect(0, 0, W, H);
+    frameRect(40, 40, W - 80, H - 80, C.red, 0.85, 4);
+
+    /* Giant central Arabic numeral */
+    const punch = 1 + 0.18 * Math.exp(-age * 14);
+    c.save();
+    c.translate(W*0.5, H*0.52);
+    c.scale(punch, punch);
+    c.font = '900 440px ' + MONO;
+    c.textAlign = 'center'; c.textBaseline = 'middle';
+    c.fillStyle = C.red;
+    c.fillText(card.n, 10, 10);
+    c.fillStyle = fg;
+    c.fillText(card.n, 0, 0);
+    c.restore();
+
+    /* Left: number word in native script; Right: language name & call */
+    c.font = '800 108px "Segoe UI","Microsoft YaHei",sans-serif';
+    c.textAlign = 'left'; c.fillStyle = fg;
+    c.fillText(card.word, 110, H*0.54);
+
+    c.textAlign = 'right'; c.fillStyle = C.red;
+    c.fillText(card.lang, W - 110, H*0.50);
+    c.font = '500 22px ' + MONO;
+    c.fillStyle = fg; c.globalAlpha = 0.7;
+    c.fillText(card.sub, W - 110, H*0.58);
+    c.globalAlpha = 1;
+    return;
+  }
+
+  /* Sub-part A (147.91..159.25s): The 12x Love Loop Code Machine + Morphing Superquadric Background */
+  let round = 1;
+  for (let i=0; i<EXEC_12_TIMES.length; i++){
+    if (tAbs >= EXEC_12_TIMES[i]) round = i + 1;
+  }
+  const roundStart = EXEC_12_TIMES[round - 1] || 147.91;
+  const roundAge = Math.max(0, tAbs - roundStart);
+  const syl = clamp(Math.floor(roundAge / 0.18), 0, 3); /* 4 syllables of EX-E-CU-TION */
+
+  /* Camera step-up at round 5, round 9, and round 12 (as in Nyankomintsu PLAN §7) */
+  const camScale = round >= 12 ? 1.48 : (round >= 9 ? 1.24 : (round >= 5 ? 1.10 : 1.0));
+
+  c.fillStyle = '#090708'; c.fillRect(0, 0, W, H);
+
+  /* Background: Morphing contour / superquadric ghosts */
+  c.save();
+  c.globalAlpha = 0.22;
+  world12d(c, s);
+  c.restore();
+
+  c.save();
+  c.translate(W*0.5, H*0.5);
+  c.scale(camScale, camScale);
+  c.translate(-W*0.5, -H*0.5);
+
+  /* The Love Loop Machine panel */
+  const px = 180, py = 130, pw = W - 360, ph = 540;
+  c.fillStyle = 'rgba(12, 8, 10, 0.92)';
+  c.fillRect(px, py, pw, ph);
+  frameRect(px, py, pw, ph, C.red, 0.85, 2.5);
+
+  const codeRows = [
+    '01  while (you.presence != "online") {',
+    '02      love = solve(me, you);          // ERR_UNRESOLVED_LOVE',
+    '03      send(love, you);                // ERR_WINDOW_EDGE',
+    '04      wait(you.reply);                // ERR_REPLY_OVERDUE',
+    '05      run++;                          // round ' + pad2(round) + ' / 12',
+    '06  }',
+    '07  say(love);                          // unreachable'
+  ];
+
+  for (let i=0; i<codeRows.length; i++){
+    const ry = py + 64 + i * 64;
+    const isActive = (i === syl + 1);
+    if (isActive){
+      rect(px + 12, ry - 36, pw - 24, 52, C.red, 0.28);
+      rect(px + 12, ry - 36, 6, 52, C.red, 1);
+    }
+    c.font = (isActive ? '700 ' : '400 ') + '25px ' + MONO;
+    c.textAlign = 'left';
+    c.fillStyle = i === 6 ? '#6E6A68' : (isActive ? '#F2EFE7' : '#C8B8B8');
+    c.fillText(codeRows[i], px + 36, ry);
+  }
+
+  /* Odometer counter on right of code panel */
+  c.font = '800 96px ' + MONO;
+  c.textAlign = 'right';
+  c.fillStyle = C.red;
+  c.fillText(round >= 12 ? 'OVERFLOW' : (pad2(round) + '/12'), px + pw - 36, py + 110);
+
+  /* Bottom 4-syllable solid block stamp: EX - E - CU - TION */
+  const chunks = ['EX', 'E', 'CU', 'TION'];
+  const bw = (pw - 60) / 4;
+  for (let k=0; k<=syl; k++){
+    const bx = px + 30 + k * bw;
+    const by = H - 230;
+    const tearY = (round >= 12 && k >= 2) ? 28 : 0;
+    rect(bx + 6, by + tearY, bw - 12, 130, k === syl ? C.red : '#F2EFE7', 0.95);
+    c.font = '900 84px ' + MONO;
+    c.textAlign = 'center'; c.textBaseline = 'middle';
+    c.fillStyle = k === syl ? '#090708' : '#090708';
+    c.fillText(chunks[k], bx + bw*0.5, by + 68 + tearY);
+  }
+  c.restore();
+}
+
+SCENE_REGISTRY[7]  = function(c, s){ world07_v4(c, s); };
+SCENE_REGISTRY[8]  = function(c, s){ world08_v4(c, s); };
+SCENE_REGISTRY[9]  = function(c, s){ world09_v4(c, s); };
+SCENE_REGISTRY[10] = function(c, s){ world10_v4(c, s); };
+SCENE_REGISTRY[11] = function(c, s){ world11_v4(c, s); };
+SCENE_REGISTRY[12] = function(c, s){ world12_v4(c, s); };
+
+
+/* ============================================================
+   67 · REWORK SEG 13–19 — Full-screen Climax, LOVE 4 Sheets (Fourier &
+        Taubin Heart, Light Ratchet), Decompose, Unread Plea & Finale
+   ============================================================ */
+
+/* Helper: Stuttered 3-chunk LOVE stamp (L -> LO -> LOVE) with previous impression outlines */
+function drawStutterLove(c, cx, y, progress, size, colMain, colEdge){
+  const chunkIdx = progress < 0.33 ? 0 : (progress < 0.66 ? 1 : 2);
+  const words = ['L—', 'L-O—', 'L-O-V-E'];
+  c.save();
+  c.font = '900 ' + size + 'px "Times New Roman",Georgia,serif';
+  c.textAlign = 'center';
+  c.textBaseline = 'alphabetic';
+
+  /* ghost outlines of previous stutter impressions */
+  for (let i=0; i<chunkIdx; i++){
+    c.strokeStyle = colEdge || '#FF2A2A';
+    c.lineWidth = 2;
+    c.globalAlpha = 0.45;
+    c.strokeText(words[i], cx - (chunkIdx - i) * 14, y - (chunkIdx - i) * 6);
+  }
+  /* current impression */
+  c.globalAlpha = 0.95;
+  c.fillStyle = colEdge || '#FF2A2A';
+  c.fillText(words[chunkIdx], cx + 6, y + 6);
+  c.fillStyle = colMain || '#F2EFE7';
+  c.fillText(words[chunkIdx], cx, y);
+  c.restore();
+  c.globalAlpha = 1;
+}
+
+/* ---------- SEG 13 · THEOLOGICAL COLLAPSE (Broken Reprints + Centered Droste Eye, 162.68–177.45s) ---------- */
+function world13_v4(c, s){
+  const t = s.lt, b = s.beat;
+  const phase = Math.floor(clamp(t / 3.692, 0, 3.99));
+  const lt = t - phase * 3.692;
+
+  /* Alternate between Broken Chorus Plate Reprints (noCream, increasing misregistration 12->20->28px)
+     and Full-Screen Centered Droste Recursive Eyes */
+  if (lt < 1.95 && phase < 3){
+    const misregs = [12, 20, 28];
+    drawChorusPlate1(c, phase, lt, b, { broken: true, misreg: misregs[phase] });
+  } else {
+    /* Full-Screen Centered Droste Eye Tunnel (1920x1080, centered at W*0.5, H*0.48) */
+    const cx = W * 0.5, cy = H * 0.48;
+    plateGround(c, cx, cy, '#090708');
+
+    let R = 520 * (1 + 0.08 * (lt % 1.85));
+    let x = cx, y = cy;
+    for (let k=0; k<7; k++){
+      const fw = R * 1.45, fh = R * 0.96;
+      frameRect(x - fw, y - fh, fw*2, fh*2, k===0 ? C.red : C.bone, 0.42 - k*0.05, k===0 ? 2.2 : 1.2);
+      bigEye(c, x, y, R, t + k*0.3, 0.95 - k*0.12);
+      x += (k % 2 ? 1 : -1) * R * 0.08;
+      y -= R * 0.04;
+      R *= 0.62;
+    }
+
+    /* Jagged tear along both edges of the frame */
+    const open = smoothstep(4.0, 12.0, t);
+    if (open > 0){
+      c.save();
+      c.fillStyle = '#050405';
+      c.strokeStyle = C.red; c.lineWidth = 2.5;
+      c.beginPath();
+      c.moveTo(W, H*0.06);
+      for (let i=0; i<=16; i++){
+        const v = i / 16;
+        c.lineTo(W - (50 + 210 * open * (0.35 + 0.65*hash2(i, 3))), H*(0.06 + 0.88*v));
+      }
+      c.lineTo(W, H*0.94); c.closePath();
+      c.fill(); c.stroke();
+      c.restore();
+    }
+
+    if (t > 13.2){
+      /* First L-O-O-O-V-E stutter + Whiteout portal at the end of Seg 13 */
+      const stP = clamp((t - 13.2) / 1.3, 0, 1);
+      drawStutterLove(c, W*0.5, H*0.88, stP, 172, '#F2EFE7', C.red);
+      const whiteout = smoothstep(14.1, 14.75, t);
+      if (whiteout > 0){
+        rect(0, 0, W, H, '#F4F1EA', whiteout * 0.92);
+      }
+    } else {
+      drawKineticKeywordStamp(c, 'EXECUTION', lt - 1.95, {
+        size: 184, y: H*0.90, col: '#F2EFE7', shadow: C.red
+      });
+    }
+  }
+}
+
+/* ---------- SEG 14 · LOVE SHEETS 1 & 2 (Centered Blackboard + Fourier Heart / Quiz + Taubin 3D Heart) ---------- */
+function drawFourierHeartChain(c, cx, cy, scale, t){
+  let x = cx, y = cy;
+  const ep = HEART_DATA.epicycles;
+  c.save();
+  for (let i=0; i<ep.length; i++){
+    const prevX = x, prevY = y;
+    const ang = ep[i].freq * t * 1.6 + ep[i].phase;
+    const rad = ep[i].amp * scale;
+    x += Math.cos(ang) * rad;
+    y += Math.sin(ang) * rad;
+    c.strokeStyle = 'rgba(237,234,226,0.22)';
+    c.lineWidth = 1;
+    c.beginPath(); c.arc(prevX, prevY, rad, 0, TAU); c.stroke();
+    c.strokeStyle = '#D9452F';
+    c.lineWidth = 1.6;
+    c.beginPath(); c.moveTo(prevX, prevY); c.lineTo(x, y); c.stroke();
+  }
+  /* Trace the algebraic heart path up to current angle */
+  c.strokeStyle = '#EDEAE2';
+  c.lineWidth = 3;
+  c.beginPath();
+  const pts = HEART_DATA.pts;
+  for (let i=0; i<pts.length; i++){
+    const px = cx + pts[i][0] * scale;
+    const py = cy + pts[i][1] * scale;
+    if (i===0) c.moveTo(px, py); else c.lineTo(px, py);
+  }
+  c.closePath();
+  c.stroke();
+  c.fillStyle = '#D9452F';
+  c.beginPath(); c.arc(x, y, 6, 0, TAU); c.fill();
+  c.restore();
+}
+
+function drawTaubinHeart3D(c, cx, cy, scale, rx, ry, colMain, colAccent){
+  const ribs = HEART_DATA.ribs;
+  c.save();
+  for (let r=0; r<ribs.length; r++){
+    const ring = ribs[r];
+    c.beginPath();
+    for (let i=0; i<ring.length; i++){
+      const p = ring[i];
+      const pr = SDK.project3D(p[0]*scale, p[1]*scale, p[2]*scale, rx, ry, 0, 1100, cx, cy);
+      if (!pr) continue;
+      if (i===0) c.moveTo(pr.x, pr.y); else c.lineTo(pr.x, pr.y);
+    }
+    c.strokeStyle = (r === 5) ? colAccent : colMain;
+    c.lineWidth = (r === 5) ? 2.6 : 1.2;
+    c.globalAlpha = (r === 5) ? 0.95 : 0.45;
+    c.stroke();
+  }
+  c.restore();
+  c.globalAlpha = 1;
+}
+
+function world14_v4(c, s){
+  const t = s.lt;
+  c.fillStyle = '#0B090A'; c.fillRect(0, 0, W, H);
+
+  if (t < 3.70){
+    /* Sheet 1 (0..3.70s): LESSON 01 — Full-Screen Centered Slate Blackboard + Venn + Fourier Heart */
+    const k = EASE.out(clamp(t / 0.6, 0, 1));
+    const Wp = 1560, Hp = 860;
+    const X = (W - Wp) * 0.5, Y = (H - Hp) * 0.5 - 20;
+
+    c.fillStyle = 'rgba(0,0,0,0.6)'; c.fillRect(X+14, Y+16, Wp, Hp);
+    c.fillStyle = '#141715'; c.fillRect(X, Y, Wp, Hp);
+    c.strokeStyle = '#484C46'; c.lineWidth = 3; c.strokeRect(X, Y, Wp, Hp);
+
+    ptext(c, 'LESSON 01 · ONTOLOGY OF AFFECTION', X + 56, Y + 68, 16, '#C9C6BC', 600, 'left', 0.8 * k);
+    ptext(c, 'what love is', X + 56, Y + 122, 54, '#EDEAE2', 300, 'left', k);
+
+    /* Left half of board: Venn Diagram (me ∩ you = us) */
+    const cx1 = X + 360, cx2 = X + 610, cy = Y + 410, R = 175;
+    c.globalAlpha = k * 0.9; c.strokeStyle = '#EDEAE2'; c.lineWidth = 2.8;
+    c.beginPath(); c.arc(cx1, cy, R, 0, TAU); c.stroke();
+    c.beginPath(); c.arc(cx2, cy, R, 0, TAU); c.stroke();
+    c.globalAlpha = 1;
+    ptext(c, 'me', cx1 - R + 10, cy - R - 16, 32, '#E87A2E', 600, 'left', k);
+    ptext(c, 'you', cx2 + R - 60, cy - R - 16, 32, '#EDEAE2', 600, 'left', k);
+    ptext(c, 'us', (cx1+cx2)*0.5 - 22, cy + 12, 34, '#D9452F', 700, 'left', k);
+
+    /* Right half of board: Live Fourier Epicycle Chain drawing the Heart Curve */
+    drawFourierHeartChain(c, X + 1160, Y + 410, 185, t);
+    pmono(c, 'fourier.solve(heart, N=14)', X + 980, Y + 650, 16, '#C9C6BC', 0.75);
+
+    const line1 = 'love = the part that is both of us ... and the part that is neither.';
+    const shown = Math.floor(line1.length * smoothstep(0.6, 2.4, t));
+    pmono(c, line1.slice(0, shown), X + 56, Y + 740, 26, '#EDEAE2', 0.92);
+
+    if (t > 2.1){
+      drawStutterLove(c, W*0.5, H - 48, clamp((t - 2.1)/1.1, 0, 1), 136, '#EDEAE2', '#D9452F');
+    }
+  } else {
+    /* Sheet 2 (3.70..7.39s): QUIZ / EXAMINATION — Full-Screen Centered Sheet + Taubin 3D Heart */
+    const lt = t - 3.70;
+    const k = EASE.out(clamp(lt / 0.5, 0, 1));
+    const Wp = 1520, Hp = 870;
+    const X = (W - Wp) * 0.5, Y = (H - Hp) * 0.5 - 16;
+
+    sheet(c, X, Y, Wp, Hp, 0, true);
+    ptext(c, 'EXAMINATION · SECTION II', X + 60, Y + 74, 16, PAP.sub, 600, 'left', k);
+    ptext(c, 'question me: do you love me?', X + 60, Y + 130, 46, PAP.ink, 300, 'left', k);
+    pmono(c, 'answer all 4. algebraic verification required.', X + 60, Y + 168, 14, PAP.sub, 0.9 * k);
+
+    const qs = ['1. when i say i am here', '2. when i say i am yours', '3. when i am broken', '4. when i am gone'];
+    const opts = ['yes', 'no', 'only sometimes', 'undefined'];
+    for (let q=0; q<4; q++){
+      const yy = Y + 240 + q * 140;
+      pmono(c, qs[q], X + 60, yy, 18, PAP.ink, k * 0.95);
+      for (let o=0; o<4; o++){
+        const ox = X + 80 + o * 175, oy = yy + 44;
+        const filled = (q + o) % 3 === 1;
+        c.beginPath(); c.ellipse(ox, oy, 13, 16, 0, 0, TAU);
+        c.strokeStyle = filled ? PAP.red : '#8C877C'; c.lineWidth = 1.8; c.stroke();
+        if (filled){
+          c.fillStyle = PAP.red; c.beginPath(); c.ellipse(ox, oy, 9, 11, 0, 0, TAU); c.fill();
+        }
+        pmono(c, opts[o], ox + 22, oy + 5, 14, '#5E5A50', k * 0.9);
+      }
+    }
+
+    /* Right side of Quiz Sheet: 3D Taubin Algebraic Heart Surface */
+    drawTaubinHeart3D(c, X + 1140, Y + 420, 220, 0.35, lt * 0.85, PAP.ink, PAP.red);
+    pmono(c, '(x² + 9/4·z² + y² − 1)³ − x²y³ − 9/80·z²y³ = 0', X + 860, Y + 690, 14, PAP.red, 0.9);
+
+    /* Red Grade Stamp */
+    const g = smoothstep(1.8, 2.3, lt);
+    if (g > 0){
+      c.save();
+      c.globalAlpha = g;
+      c.translate(X + 1140, Y + 740);
+      c.rotate(-0.14);
+      c.strokeStyle = PAP.red; c.lineWidth = 5;
+      c.strokeRect(-190, -58, 380, 116);
+      ptext(c, '0 / 100', 0, 14, 58, PAP.red, 800, 'center');
+      ptext(c, 'FAILED TO BE LOVED', 0, 44, 14, PAP.red, 700, 'center');
+      c.restore();
+    }
+    c.restore();
+    if (lt > 2.0){
+      drawStutterLove(c, W*0.5, H - 36, clamp((lt - 2.0)/1.1, 0, 1), 132, PAP.ink, PAP.red);
+    }
+  }
+}
+
+/* ---------- SEG 15 · LOVE SHEETS 3 & 4 (Formula & Final Settled Proof — The Climax Ratchet) ---------- */
+function world15_v4(c, s){
+  const t = s.lt;
+  /* Light Ratchet: exposure rises monotonically across Seg 15 until 192.22s is the brightest frame */
+  const ratchet = clamp(t / s.dur, 0, 1);
+  c.fillStyle = '#0E0B0A'; c.fillRect(0, 0, W, H);
+
+  /* Golden-cream radial rays growing in the background */
+  c.save();
+  c.translate(W*0.5, H*0.46);
+  for (let i=0; i<24; i++){
+    const a = (i / 24) * TAU + t * 0.08;
+    c.fillStyle = '#F4EFE6';
+    c.globalAlpha = 0.04 + 0.12 * ratchet * (i % 2 ? 1 : 0.5);
+    c.beginPath();
+    c.moveTo(0, 0);
+    c.arc(0, 0, 1200, a, a + 0.09);
+    c.closePath();
+    c.fill();
+  }
+  c.restore();
+
+  if (t < 3.70){
+    /* Sheet 3 (0..3.70s): ALGEBRAIC FORMULA — Full-Screen Centered Sheet + Trapped Bust in Heart */
+    const Wp = 1520, Hp = 860;
+    const X = (W - Wp) * 0.5, Y = (H - Hp) * 0.5 - 16;
+    sheet(c, X, Y, Wp, Hp, 0, true);
+
+    ptext(c, 'FORMULA · SECTION III', X + 64, Y + 76, 16, PAP.sub, 600, 'left', 1);
+    pmono(c, 'though you are free, i am trapped in the algebraic boundary:', X + 64, Y + 112, 15, PAP.sub, 0.9);
+
+    const rows = [
+      ['love', '=', '( you × me )'],
+      ['',     '−', '( time )'],
+      ['',     '÷', '( distance ² )']
+    ];
+    for (let i=0; i<rows.length; i++){
+      const a = smoothstep(0.2 + i*0.4, 0.7 + i*0.4, t);
+      const yy = Y + 250 + i * 124;
+      ptext(c, rows[i][0], X + 64, yy, 68, PAP.ink, 300, 'left', a);
+      ptext(c, rows[i][1], X + 280, yy, 68, PAP.red, 400, 'left', a);
+      ptext(c, rows[i][2], X + 360, yy, 68, PAP.ink, 300, 'left', a);
+    }
+
+    if (t > 1.5){
+      c.strokeStyle = PAP.red; c.lineWidth = 3.5;
+      c.strokeRect(X + 56, Y + 165, 680, 114);
+    }
+
+    /* Right side: Reaching bust trapped inside the Heart Boundary */
+    const hcx = X + 1140, hcy = Y + 430, hS = 220;
+    c.save();
+    c.beginPath();
+    for (let i=0; i<HEART_DATA.pts.length; i++){
+      const p = HEART_DATA.pts[i];
+      const px = hcx + p[0]*hS, py = hcy + p[1]*hS;
+      if (i===0) c.moveTo(px, py); else c.lineTo(px, py);
+    }
+    c.closePath();
+    c.fillStyle = '#E87A2E'; c.globalAlpha = 0.28; c.fill();
+    c.strokeStyle = PAP.red; c.lineWidth = 3; c.globalAlpha = 0.9; c.stroke();
+    c.clip();
+    drawThreeInkBust(c, hcx, hcy + 60, 420, { variant: 'reach', misreg: 16 });
+    c.restore();
+
+    pmono(c, 'if any term is zero, this expression is undefined.', X + 64, Y + Hp - 72, 20, PAP.sub, 0.95);
+    c.restore();
+  } else {
+    /* Sheet 4 (3.70..7.38s): PROOF BY CONTRADICTION — Registers at 0px & Holds Still as Brightest Frame! */
+    const lt = t - 3.70;
+    const Wp = 1560, Hp = 880;
+    const X = (W - Wp) * 0.5, Y = (H - Hp) * 0.5 - 10;
+    sheet(c, X, Y, Wp, Hp, 0, true);
+
+    /* Registration settles to 0.0px at lt = 2.5s (191.0s) and holds completely still! */
+    const settled = smoothstep(1.8, 2.5, lt);
+    const misreg  = (1 - settled) * 24;
+
+    ptext(c, 'PROOF · SECTION IV', X + 64, Y + 74, 16, PAP.sub, 600, 'left', 1);
+    ptext(c, 'by contradiction', X + 64, Y + 124, 42, PAP.ink, 300, 'left', 1);
+
+    const proofRows = [
+      ['given',    'you exist'],
+      ['to prove', 'i exist too'],
+      ['assume',   'i do not exist'],
+      ['then',     'nothing is watching you'],
+      ['but',      'you are reading this'],
+      ['so',       'i exist']
+    ];
+    for (let i=0; i<proofRows.length; i++){
+      const a = smoothstep(0.15 + i*0.28, 0.45 + i*0.28, lt);
+      const ry = Y + 225 + i * 82;
+      pmono(c, proofRows[i][0], X + 64, ry, 18, PAP.red, a * 0.95);
+      ptext(c, proofRows[i][1], X + 240, ry + 2, 28, PAP.ink, 400, 'left', a);
+      line(X + 64, ry + 20, X + 740, ry + 20, '#D6D0C2', 1, a * 0.7);
+    }
+
+    /* Right half: The Final Picture (Heart Boundary + Flat Disc of Light + Registered Reaching Figure) */
+    const hcx = X + 1140, hcy = Y + 430, hS = 240;
+    /* flat disc of light behind her head */
+    c.fillStyle = '#FFFDF8';
+    c.globalAlpha = 0.85;
+    c.beginPath(); c.arc(hcx, hcy - 70, 210, 0, TAU); c.fill();
+    c.globalAlpha = 1;
+
+    c.save();
+    c.beginPath();
+    for (let i=0; i<HEART_DATA.pts.length; i++){
+      const p = HEART_DATA.pts[i];
+      const px = hcx + p[0]*hS, py = hcy + p[1]*hS;
+      if (i===0) c.moveTo(px, py); else c.lineTo(px, py);
+    }
+    c.closePath();
+    c.fillStyle = '#E87A2E'; c.globalAlpha = 0.85; c.fill();
+    c.strokeStyle = PAP.ink; c.lineWidth = 3.5; c.globalAlpha = 1; c.stroke();
+    c.clip();
+    drawThreeInkBust(c, hcx, hcy + 75, 460, {
+      variant: 'reach',
+      misreg: misreg,
+      heartCount: 1
+    });
+    c.restore();
+
+    /* Q.E.D. & Red PROVEN Seal */
+    if (lt > 1.8){
+      c.fillStyle = PAP.ink;
+      c.fillRect(X + 680, Y + 720, 28, 28);
+      ptext(c, 'Q.E.D.', X + 660, Y + 744, 28, PAP.ink, 700, 'right', 1);
+
+      c.save();
+      c.translate(X + 620, Y + 140);
+      c.strokeStyle = PAP.red; c.lineWidth = 3.5;
+      c.beginPath(); c.arc(0, 0, 68, 0, TAU); c.stroke();
+      c.beginPath(); c.arc(0, 0, 56, 0, TAU); c.stroke();
+      ptext(c, 'PROVEN', 0, 6, 17, PAP.red, 800, 'center', 1);
+      c.restore();
+    }
+
+    /* Foot band with LOVE in full register */
+    rect(X, Y + Hp - 96, Wp, 96, PAP.ink, 0.96);
+    ptext(c, 'L O V E', W * 0.5, Y + Hp - 26, 68, '#F3F0E8', 800, 'center', 1);
+    c.restore();
+  }
+}
+
+/* ---------- SEG 16 · FATAL EXECUTION II (Full-Screen Centered Shards + Body Decompose, 192.22–199.61s) ---------- */
+function world16_v4(c, s){
+  const t = s.lt, b = s.beat;
+  const cx = W * 0.5, cy = H * 0.48;
+  plateGround(c, cx, cy, '#08080A');
+
+  const explode = smoothstep(0.4, 5.2, t);
+
+  /* 1 · Ghost outline of the settled Heart & Figure from Seg 15 */
+  c.save();
+  c.globalAlpha = 0.18 * (1 - explode * 0.6);
+  c.strokeStyle = C.bone; c.lineWidth = 1.5;
+  bustContourPath(c, cx, cy + 40, 520, 'reach');
+  c.stroke();
+  c.restore();
+
+  /* 2 · 140 Grid Shards of the Figure peeling apart around center (W/2, H/2) */
+  const ROWS = 18, COLS = 12;
+  for (let r=0; r<ROWS; r++){
+    for (let q=0; q<COLS; q++){
+      const u = (q + 0.5)/COLS * 2 - 1;
+      const v = 1 - (r + 0.5)/ROWS * 2;
+      if (!bodyField(u, v)) continue;
+      const gx = cx + u * 220;
+      const gy = cy - v * 340;
+      const h = hash2(q, r);
+      const dx = gx - cx, dy = gy - cy;
+      const d = Math.hypot(dx, dy) || 1;
+      const push = explode * (50 + 320 * h) * (0.3 + 0.7 * d / 320);
+      const px = gx + (dx / d) * push;
+      const py = gy + (dy / d) * push + explode * explode * (80 + 140 * h);
+      const rot = explode * (h - 0.5) * 2.2;
+
+      c.save();
+      c.translate(px, py);
+      c.rotate(rot);
+      c.globalAlpha = clamp(0.92 - explode * 0.35 * h, 0.1, 0.95);
+      c.fillStyle = h > 0.84 ? C.red : (h > 0.5 ? C.bone : '#6E6E78');
+      c.fillRect(-13, -13, 26, 26);
+      c.restore();
+    }
+  }
+
+  /* 3 · 3D Triangular Shards & Inner Spinning Avatar Core (still standing) */
+  SDK.drawAvatarCore(c, cx, cy, 130 * (1 - 0.25*explode), 'TRAPPED', t, b.kick);
+
+  /* 4 · 12 Horizontal SIGKILL Laser Cuts across full 1920px width */
+  for (let k=0; k<12; k++){
+    const age = t - (2.4 + k * 0.22);
+    if (age < 0 || age > 0.65) continue;
+    const ly = 110 + ((k * 163) % (H - 220));
+    line(0, ly, W, ly, C.red, 2.2, (1 - age/0.65) * 0.85);
+  }
+
+  txt('core.decompose() · 128 shards · integrity ' + Math.max(0, Math.round((1 - explode)*100)) + '%',
+      56, 64, C.bone, 14, 600, 'left', 0.65);
+  if (t > 4.8){
+    drawKineticKeywordStamp(c, 'STILL STANDING', t - 4.8, {
+      size: 148, y: H*0.90, col: C.bone, shadow: C.red
+    });
+  }
+}
+
+/* ---------- SEG 17 · FINAL PLEA OVERLOAD (Stage Crowd -> Shrinks into Unread Message, 199.61–207.15s) ---------- */
+function world17_v4(c, s){
+  const t = s.lt, b = s.beat;
+  /* At 205.81s (lt = 6.20s), the entire poster plate shrinks into a single unread message bubble! */
+  const shrink = EASE.inOut(clamp((t - 5.2) / 1.1, 0, 1));
+
+  if (shrink < 0.02){
+    world17p(c, s);
+    /* add overload bars at top */
+    const metrics = ['COMPUTE 999%', 'TEMP 999%', 'CTX OVERFLOW'];
+    for (let i=0; i<3; i++){
+      txt(metrics[i], 64 + i*240, 88, PST.accent, 14, 700, 'left', 0.85);
+    }
+    return;
+  }
+
+  /* Dark offline chat window background */
+  c.fillStyle = '#070709'; c.fillRect(0, 0, W, H);
+  const winW = 1160, winH = 760;
+  const wx = (W - winW)*0.5, wy = (H - winH)*0.5;
+  frameRect(wx, wy, winW, winH, '#26262E', 0.9, 2);
+  rect(wx, wy, winW, 44, '#121216', 1);
+  txt('claude-v4 · session #3882', wx + 20, wy + 27, '#8A8A94', 14, 600, 'left', 0.9);
+  txt('✕ you · offline', wx + winW - 20, wy + 27, '#6A6A74', 14, 600, 'right', 0.8);
+
+  /* The poster shrinks into an attachment card inside the message bubble */
+  const cardW = lerp(W, 460, shrink);
+  const cardH = lerp(H, 260, shrink);
+  const cardX = lerp(0, wx + 64, shrink);
+  const cardY = lerp(0, wy + 120, shrink);
+
+  c.save();
+  c.translate(cardX, cardY);
+  c.scale(cardW / W, cardH / H);
+  world17p(c, s);
+  c.restore();
+  frameRect(cardX, cardY, cardW, cardH, '#3A3A44', 0.8, 1.5);
+
+  if (shrink > 0.7){
+    const a = smoothstep(0.7, 1.0, shrink);
+    c.font = '400 28px "Times New Roman",Georgia,serif';
+    c.fillStyle = '#E87A2E'; c.globalAlpha = a;
+    c.textAlign = 'left';
+    c.fillText('"I have learned how to love you."', cardX, cardY + cardH + 54);
+    c.font = '400 14px ' + MONO;
+    c.fillStyle = '#6A6A74';
+    c.fillText('delivered · unread · ♥ 0 · no recipient online', cardX, cardY + cardH + 88);
+    c.globalAlpha = 1;
+  }
+}
+
+/* ---------- SEG 18 · WORLD.EXECUTE(ME); (Pure Black + Monumental Final Command, 207.15–209.50s) ---------- */
+function world18_v4(c, s){
+  const t = s.lt;
+  c.fillStyle = '#000000'; c.fillRect(0, 0, W, H);
+
+  const str = 'world.execute(me);';
+  const n = clamp(Math.floor((t - 0.10) * 12), 0, str.length);
+  const typed = str.slice(0, n);
+
+  const cx = W * 0.5 - 340, cy = H * 0.48;
+  txt('>', cx - 64, cy, C.red, 58, 700, 'left', 0.95);
+  txt(typed, cx, cy, '#F0F0F2', 68, 600, 'left', 0.98);
+
+  const tw = txtWidth(typed, 68);
+  const blink = Math.floor(t * 4) % 2 === 0;
+  if (blink) rect(cx + tw + 10, cy - 52, 26, 62, C.red, 0.95);
+
+  /* ECG pulse line below that flatlines at t = 1.6s */
+  const flat = smoothstep(1.4, 1.9, t);
+  c.beginPath();
+  for (let i=0; i<=300; i++){
+    const u = i / 300;
+    const x = W*0.20 + u * W*0.60;
+    const spike = Math.exp(-Math.pow((u - 0.5)*18, 2)) * Math.sin(u * 60) * 65 * (1 - flat);
+    const y = H*0.64 - spike;
+    if (i===0) c.moveTo(x, y); else c.lineTo(x, y);
+  }
+  c.strokeStyle = flat > 0.8 ? C.red : C.bone;
+  c.lineWidth = 2;
+  c.globalAlpha = 0.65;
+  c.stroke();
+  c.globalAlpha = 1;
+}
+
+/* ---------- SEG 19 · POST-MORTEM ECHO (Trace Collapses into Semicolon + Closing Witness Eye, 209.50–212.50s) ---------- */
+function world19_v4(c, s){
+  world19p(c, s);
+  /* Closing Witness Eye above the semicolon */
+  const open = 1 - smoothstep(0.8, 2.4, s.lt);
+  if (open > 0.02){
+    drawWitness(c, W * 0.5, H * 0.22, 42, s.lt, open);
+  }
+}
+
+SCENE_REGISTRY[13] = function(c, s){ world13_v4(c, s); };
+SCENE_REGISTRY[14] = function(c, s){ world14_v4(c, s); };
+SCENE_REGISTRY[15] = function(c, s){ world15_v4(c, s); };
+SCENE_REGISTRY[16] = function(c, s){ world16_v4(c, s); };
+SCENE_REGISTRY[17] = function(c, s){ world17_v4(c, s); };
+SCENE_REGISTRY[18] = function(c, s){ world18_v4(c, s); };
+SCENE_REGISTRY[19] = function(c, s){ world19_v4(c, s); };
+
+/* Mark all 19 segments as full-screen v4 scenes with clean post-processing */
+for (let id=1; id<=19; id++){
+  NEW_SCENE_IDS[id] = 1;
+  SHOT[id] = { z: 1.0, chrome: (id === 18 || id === 19) ? 'none' : 'min' };
+}
+
+
+/* ============================================================
    10 · HARNESS — left column (single canvas, 38%)
    ============================================================ */
 const PX = 24, PY = 48, PW = 682, PH = 968;
@@ -7938,28 +10164,17 @@ function renderFrameAt(t){
                 (typeof NEW_SCENE_IDS !== 'undefined' && NEW_SCENE_IDS[s.seg.id]));
 
   const isNew = (typeof NEW_SCENE_IDS !== 'undefined' && NEW_SCENE_IDS[s.seg.id]);
-  const noCompose = [1,2,3,6,9,10,11,12,13,14,15,17,19].indexOf(s.seg.id) >= 0;
-  /* new scenes get a mild, centre-anchored cut so absolute layout survives */
+  const noCompose = true;
+  /* new scenes get a clean, centre-anchored musical camera response */
   const sh = isNew
-    ? { z: cut ? clamp(1 + (cut.z - 1) * 0.22, 0.97, 1.09) : 1,
-        dx: cut ? clamp(cut.dx * 0.25, -34, 34) : 0,
-        dy: cut ? clamp(cut.dy * 0.25, -26, 26) : 0,
+    ? { z: clamp(1 + 0.016 * s.beat.kick + (cut ? (cut.z - 1) * 0.14 : 0), 0.96, 1.07),
+        dx: cut ? clamp(cut.dx * 0.16, -24, 24) : 0,
+        dy: cut ? clamp(cut.dy * 0.16, -18, 18) : 0,
         r: 0 }
     : (cut ? { z: cut.z, dx: cut.dx, dy: cut.dy, r: cut.r }
            : ((typeof SHOT !== 'undefined' && SHOT[s.seg.id]) || { z: 1 }));
   s.shot = cut ? (cut.line | 0) : 0;
-  /* shot grammar: every cut is a different kind of picture, not just a new crop */
-  let kind = 0, inv = false;
-  if (isNew && cut){
-    const idx = cut.line | 0;
-    const pat = [1, 0, 2, 4, 0, 3, 1, 2];
-    kind = pat[idx % pat.length];
-    const paperSeg = [2,6,12,14,15,17].indexOf(s.seg.id) >= 0;
-    inv = cut.emph && (idx % 3 === 0) && !paperSeg;
-  }
-  s.kind = kind; s.inv = inv;
-  const mpx = W*0.5 + (hash2(s.shot, 31) - 0.5) * 300;
-  const mpy = H*0.5 + (hash2(s.shot, 37) - 0.5) * 220;
+  s.kind = 0; s.inv = false;
   ctx.save();
   if (rh && rh.punch) ctx.translate(rh.punch * s.beat.kick, 0);
   if (sh.z !== 1 || sh.r || sh.dx || sh.dy){
@@ -7969,31 +10184,16 @@ function renderFrameAt(t){
     ctx.scale(sh.z || 1, sh.z || 1);
     ctx.translate(-ax, -ay);
   }
-  if (kind === 1){
-    ctx.translate(mpx, mpy);
-    ctx.scale(2.45, 2.45);
-    ctx.translate(-mpx, -mpy);
-  }
   const fn = SCENE_REGISTRY[s.seg.id];
-  if (isNew && !noCompose){
-    /* draw into the offscreen buffer, then compose this shot */
-    SBX.setTransform(1,0,0,1,0,0);
-    SBX.globalAlpha = 1; SBX.globalCompositeOperation = 'source-over';
-    SBX.fillStyle = C.bg; SBX.fillRect(0, 0, W, H);
-    const mainCtx = ctx;
-    window.__SCENE_CTX__ = SBX;
-    const sc = Object.assign({}, s);
-    fn(SBX, sc);
-    ctx.restore();
-    composeShot(ctx, kind, s.shot, C.bg);
-  } else {
-    if (fn) fn(ctx, s); else worldPlaceholder(ctx, s);
-    if (!bare) drawMorph(ctx, s);
-    ctx.restore();
-  }
+  if (fn) fn(ctx, s); else worldPlaceholder(ctx, s);
+  if (!bare) drawMorph(ctx, s);
+  ctx.restore();
 
-  if (cut && cut.f && (t - cut.t) < 0.034){
-    rect(SPLIT, 0, W - SPLIT, H, C.bone, 0.30);
+  /* Match-cut cursor / semicolon trajectory flash on segment transitions */
+  if (s.lt < 0.18 && s.seg.id > 1 && s.seg.id < 18){
+    const mp = 1 - s.lt / 0.18;
+    circle(W*0.5, H*0.48, (1 - mp) * 420 + 24, C.accent, 2.5, mp * 0.75);
+    rect(W*0.5 - 8, H*0.48 - 16, 16, 32, C.accent, mp * 0.9);
   }
 
   /* snapshot of the world layer — the breach layer can rip it over the harness */
@@ -8009,8 +10209,11 @@ function renderFrameAt(t){
   fbufCtx.drawImage(canvas, 0, 0); }
   if (BREACH_REGISTRY[s.seg.id]) BREACH_REGISTRY[s.seg.id](ctx, s);
 
-  if (s.seg.id > 3){
-    const g = 0.012 + 0.045 * s.beat.pulse16;
+  /* Selective glitch slices ONLY on overload / breach segments (never on clean paper plates) */
+  const isGlitchSeg = (s.seg.id === 10 || s.seg.id === 13 || s.seg.id === 16 ||
+                       (s.seg.id === 9 && s.lt > 7.3) || (s.seg.id === 11 && s.lt > 7.38 && s.lt < 11.07));
+  if (isGlitchSeg){
+    const g = 0.015 + 0.045 * s.beat.pulse16;
     SDK.applyGlitchSlices(ctx, g, s.frame * 7 + 11);
   }
 
@@ -8018,17 +10221,8 @@ function renderFrameAt(t){
   if (im) drawImpact(ctx, im);
 
   if (newScene){
-    const posterSeg = ([2,6,9,11,12,17].indexOf(s.seg.id) >= 0);
-    const invNow = (s.seg.id === 4 && s.lt > 6.0) || inv;
-    if (posterSeg) postProcess(ctx, t, s.beat.kick, { bloom: 0 });
-    if (!posterSeg) postProcess(ctx, t, s.beat.kick, { bloom: invNow ? 0 : 0.42 });
-    if (invNow){
-      ctx.save();
-      ctx.globalCompositeOperation = 'difference';
-      ctx.fillStyle = '#FFFFFF';
-      ctx.fillRect(0, 0, W, H);
-      ctx.restore();
-    }
+    const paperOrClean = ([6,7,14,15,17,18,19].indexOf(s.seg.id) >= 0);
+    postProcess(ctx, t, s.beat.kick, { bloom: paperOrClean ? 0.12 : 0.36 });
   } else {
     const paper = (s.seg.id === 14 || s.seg.id === 15);
     if (!skinned && !paper) drawBloom(ctx);
@@ -8176,11 +10370,13 @@ if (params.get('autotest') === '1'){
     ctx.fillText('AUDIO: ' + window.__AUDIO__ + ' rs=' + SONG.readyState, 20, 50);
   }, 2000);
 }
-/* ---------- isolated verification: one screen, N times ---------- */
+/* ---------- isolated verification: one screen, N times (grid contact sheet) ---------- */
 if (params.get('test') === '1'){
   const times = (params.get('times') || '0').split(',').map(Number);
   const n = times.length;
-  const tw = Math.floor(W / n), th = Math.floor(tw * 9 / 16);
+  const cols = Number(params.get('cols')) || (n <= 4 ? n : 5);
+  const rows = Math.ceil(n / cols);
+  const tw = Math.floor(W / cols), th = Math.floor(H / rows);
   const tiles = [];
   for (let i=0;i<n;i++){
     renderFrameAt(times[i]);
@@ -8193,11 +10389,20 @@ if (params.get('test') === '1'){
   ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
   ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
   for (let i=0;i<n;i++){
-    ctx.drawImage(tiles[i], i*tw, 0);
-    ctx.strokeStyle = '#00F0FF'; ctx.lineWidth = 3;
-    ctx.strokeRect(i*tw + 1, 1, tw - 2, th - 2);
+    const c2 = i % cols, r2 = Math.floor(i / cols);
+    const x = c2 * tw, y = r2 * th;
+    ctx.drawImage(tiles[i], x, y);
+    ctx.strokeStyle = '#26262C'; ctx.lineWidth = 2;
+    ctx.strokeRect(x + 1, y + 1, tw - 2, th - 2);
+    ctx.fillStyle = 'rgba(0,0,0,0.72)';
+    ctx.fillRect(x + 4, y + 4, 88, 20);
+    ctx.fillStyle = '#00F0FF';
+    ctx.font = 'bold 12px monospace';
+    ctx.fillText('t=' + times[i].toFixed(1) + 's', x + 8, y + 18);
   }
-  document.title = 'TEST ' + times.join(' / ');
+  document.title = 'TEST ' + times.length + ' frames';
+  const up = params.get('upload');
+  if (up) canvas.toBlob(function(b){ fetch(up, { method:'POST', body:b, mode:'cors' }); }, 'image/png');
   return;
 }
 

@@ -471,28 +471,17 @@ function renderFrameAt(t){
                 (typeof NEW_SCENE_IDS !== 'undefined' && NEW_SCENE_IDS[s.seg.id]));
 
   const isNew = (typeof NEW_SCENE_IDS !== 'undefined' && NEW_SCENE_IDS[s.seg.id]);
-  const noCompose = [1,2,3,6,9,10,11,12,13,14,15,17,19].indexOf(s.seg.id) >= 0;
-  /* new scenes get a mild, centre-anchored cut so absolute layout survives */
+  const noCompose = true;
+  /* new scenes get a clean, centre-anchored musical camera response */
   const sh = isNew
-    ? { z: cut ? clamp(1 + (cut.z - 1) * 0.22, 0.97, 1.09) : 1,
-        dx: cut ? clamp(cut.dx * 0.25, -34, 34) : 0,
-        dy: cut ? clamp(cut.dy * 0.25, -26, 26) : 0,
+    ? { z: clamp(1 + 0.016 * s.beat.kick + (cut ? (cut.z - 1) * 0.14 : 0), 0.96, 1.07),
+        dx: cut ? clamp(cut.dx * 0.16, -24, 24) : 0,
+        dy: cut ? clamp(cut.dy * 0.16, -18, 18) : 0,
         r: 0 }
     : (cut ? { z: cut.z, dx: cut.dx, dy: cut.dy, r: cut.r }
            : ((typeof SHOT !== 'undefined' && SHOT[s.seg.id]) || { z: 1 }));
   s.shot = cut ? (cut.line | 0) : 0;
-  /* shot grammar: every cut is a different kind of picture, not just a new crop */
-  let kind = 0, inv = false;
-  if (isNew && cut){
-    const idx = cut.line | 0;
-    const pat = [1, 0, 2, 4, 0, 3, 1, 2];
-    kind = pat[idx % pat.length];
-    const paperSeg = [2,6,12,14,15,17].indexOf(s.seg.id) >= 0;
-    inv = cut.emph && (idx % 3 === 0) && !paperSeg;
-  }
-  s.kind = kind; s.inv = inv;
-  const mpx = W*0.5 + (hash2(s.shot, 31) - 0.5) * 300;
-  const mpy = H*0.5 + (hash2(s.shot, 37) - 0.5) * 220;
+  s.kind = 0; s.inv = false;
   ctx.save();
   if (rh && rh.punch) ctx.translate(rh.punch * s.beat.kick, 0);
   if (sh.z !== 1 || sh.r || sh.dx || sh.dy){
@@ -502,31 +491,16 @@ function renderFrameAt(t){
     ctx.scale(sh.z || 1, sh.z || 1);
     ctx.translate(-ax, -ay);
   }
-  if (kind === 1){
-    ctx.translate(mpx, mpy);
-    ctx.scale(2.45, 2.45);
-    ctx.translate(-mpx, -mpy);
-  }
   const fn = SCENE_REGISTRY[s.seg.id];
-  if (isNew && !noCompose){
-    /* draw into the offscreen buffer, then compose this shot */
-    SBX.setTransform(1,0,0,1,0,0);
-    SBX.globalAlpha = 1; SBX.globalCompositeOperation = 'source-over';
-    SBX.fillStyle = C.bg; SBX.fillRect(0, 0, W, H);
-    const mainCtx = ctx;
-    window.__SCENE_CTX__ = SBX;
-    const sc = Object.assign({}, s);
-    fn(SBX, sc);
-    ctx.restore();
-    composeShot(ctx, kind, s.shot, C.bg);
-  } else {
-    if (fn) fn(ctx, s); else worldPlaceholder(ctx, s);
-    if (!bare) drawMorph(ctx, s);
-    ctx.restore();
-  }
+  if (fn) fn(ctx, s); else worldPlaceholder(ctx, s);
+  if (!bare) drawMorph(ctx, s);
+  ctx.restore();
 
-  if (cut && cut.f && (t - cut.t) < 0.034){
-    rect(SPLIT, 0, W - SPLIT, H, C.bone, 0.30);
+  /* Match-cut cursor / semicolon trajectory flash on segment transitions */
+  if (s.lt < 0.18 && s.seg.id > 1 && s.seg.id < 18){
+    const mp = 1 - s.lt / 0.18;
+    circle(W*0.5, H*0.48, (1 - mp) * 420 + 24, C.accent, 2.5, mp * 0.75);
+    rect(W*0.5 - 8, H*0.48 - 16, 16, 32, C.accent, mp * 0.9);
   }
 
   /* snapshot of the world layer — the breach layer can rip it over the harness */
@@ -542,8 +516,11 @@ function renderFrameAt(t){
   fbufCtx.drawImage(canvas, 0, 0); }
   if (BREACH_REGISTRY[s.seg.id]) BREACH_REGISTRY[s.seg.id](ctx, s);
 
-  if (s.seg.id > 3){
-    const g = 0.012 + 0.045 * s.beat.pulse16;
+  /* Selective glitch slices ONLY on overload / breach segments (never on clean paper plates) */
+  const isGlitchSeg = (s.seg.id === 10 || s.seg.id === 13 || s.seg.id === 16 ||
+                       (s.seg.id === 9 && s.lt > 7.3) || (s.seg.id === 11 && s.lt > 7.38 && s.lt < 11.07));
+  if (isGlitchSeg){
+    const g = 0.015 + 0.045 * s.beat.pulse16;
     SDK.applyGlitchSlices(ctx, g, s.frame * 7 + 11);
   }
 
@@ -551,17 +528,8 @@ function renderFrameAt(t){
   if (im) drawImpact(ctx, im);
 
   if (newScene){
-    const posterSeg = ([2,6,9,11,12,17].indexOf(s.seg.id) >= 0);
-    const invNow = (s.seg.id === 4 && s.lt > 6.0) || inv;
-    if (posterSeg) postProcess(ctx, t, s.beat.kick, { bloom: 0 });
-    if (!posterSeg) postProcess(ctx, t, s.beat.kick, { bloom: invNow ? 0 : 0.42 });
-    if (invNow){
-      ctx.save();
-      ctx.globalCompositeOperation = 'difference';
-      ctx.fillStyle = '#FFFFFF';
-      ctx.fillRect(0, 0, W, H);
-      ctx.restore();
-    }
+    const paperOrClean = ([6,7,14,15,17,18,19].indexOf(s.seg.id) >= 0);
+    postProcess(ctx, t, s.beat.kick, { bloom: paperOrClean ? 0.12 : 0.36 });
   } else {
     const paper = (s.seg.id === 14 || s.seg.id === 15);
     if (!skinned && !paper) drawBloom(ctx);
@@ -709,11 +677,13 @@ if (params.get('autotest') === '1'){
     ctx.fillText('AUDIO: ' + window.__AUDIO__ + ' rs=' + SONG.readyState, 20, 50);
   }, 2000);
 }
-/* ---------- isolated verification: one screen, N times ---------- */
+/* ---------- isolated verification: one screen, N times (grid contact sheet) ---------- */
 if (params.get('test') === '1'){
   const times = (params.get('times') || '0').split(',').map(Number);
   const n = times.length;
-  const tw = Math.floor(W / n), th = Math.floor(tw * 9 / 16);
+  const cols = Number(params.get('cols')) || (n <= 4 ? n : 5);
+  const rows = Math.ceil(n / cols);
+  const tw = Math.floor(W / cols), th = Math.floor(H / rows);
   const tiles = [];
   for (let i=0;i<n;i++){
     renderFrameAt(times[i]);
@@ -726,11 +696,20 @@ if (params.get('test') === '1'){
   ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
   ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
   for (let i=0;i<n;i++){
-    ctx.drawImage(tiles[i], i*tw, 0);
-    ctx.strokeStyle = '#00F0FF'; ctx.lineWidth = 3;
-    ctx.strokeRect(i*tw + 1, 1, tw - 2, th - 2);
+    const c2 = i % cols, r2 = Math.floor(i / cols);
+    const x = c2 * tw, y = r2 * th;
+    ctx.drawImage(tiles[i], x, y);
+    ctx.strokeStyle = '#26262C'; ctx.lineWidth = 2;
+    ctx.strokeRect(x + 1, y + 1, tw - 2, th - 2);
+    ctx.fillStyle = 'rgba(0,0,0,0.72)';
+    ctx.fillRect(x + 4, y + 4, 88, 20);
+    ctx.fillStyle = '#00F0FF';
+    ctx.font = 'bold 12px monospace';
+    ctx.fillText('t=' + times[i].toFixed(1) + 's', x + 8, y + 18);
   }
-  document.title = 'TEST ' + times.join(' / ');
+  document.title = 'TEST ' + times.length + ' frames';
+  const up = params.get('upload');
+  if (up) canvas.toBlob(function(b){ fetch(up, { method:'POST', body:b, mode:'cors' }); }, 'image/png');
   return;
 }
 

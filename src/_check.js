@@ -7086,6 +7086,16 @@ function renderFrameAt(t){
     : (cut ? { z: cut.z, dx: cut.dx, dy: cut.dy, r: cut.r }
            : ((typeof SHOT !== 'undefined' && SHOT[s.seg.id]) || { z: 1 }));
   s.shot = cut ? (cut.line | 0) : 0;
+  /* shot grammar: every cut is a different kind of picture, not just a new crop */
+  let kind = 0;
+  if (isNew && cut){
+    const idx = cut.line | 0;
+    if (cut.emph && (idx % 2 === 0)) kind = 2;
+    else if (idx % 3 === 1) kind = 1;
+  }
+  s.kind = kind;
+  const mpx = W*0.5 + (hash2(s.shot, 31) - 0.5) * 300;
+  const mpy = H*0.5 + (hash2(s.shot, 37) - 0.5) * 220;
   ctx.save();
   if (rh && rh.punch) ctx.translate(rh.punch * s.beat.kick, 0);
   if (sh.z !== 1 || sh.r || sh.dx || sh.dy){
@@ -7094,6 +7104,11 @@ function renderFrameAt(t){
     if (sh.r) ctx.rotate(sh.r);
     ctx.scale(sh.z || 1, sh.z || 1);
     ctx.translate(-ax, -ay);
+  }
+  if (kind === 1){
+    ctx.translate(mpx, mpy);
+    ctx.scale(2.45, 2.45);
+    ctx.translate(-mpx, -mpy);
   }
   const fn = SCENE_REGISTRY[s.seg.id];
   if (fn) fn(ctx, s); else worldPlaceholder(ctx, s);
@@ -7126,8 +7141,15 @@ function renderFrameAt(t){
   if (im) drawImpact(ctx, im);
 
   if (newScene){
-    const inv = (s.seg.id === 4 && s.lt > 6.0);
+    const inv = (s.seg.id === 4 && s.lt > 6.0) || kind === 2;
     postProcess(ctx, t, s.beat.kick, { bloom: inv ? 0 : 0.42 });
+    if (kind === 2){
+      ctx.save();
+      ctx.globalCompositeOperation = 'difference';
+      ctx.fillStyle = '#FFFFFF';
+      ctx.fillRect(0, 0, W, H);
+      ctx.restore();
+    }
   } else {
     const paper = (s.seg.id === 14 || s.seg.id === 15);
     if (!skinned && !paper) drawBloom(ctx);

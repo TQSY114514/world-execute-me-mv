@@ -535,14 +535,112 @@ function renderFrameAt(t){
     if (!skinned && !paper) drawBloom(ctx);
     drawFilmLayer(ctx, t);
   }
+  /* 14 · Bilingual Subtitles */
+  drawSubtitles(ctx, t, s.seg.id);
+
   return s;
 }
 
 /* ============================================================
-   13 · RUNTIME — no interaction: it plays, or it records itself
+   13 · BILINGUAL SUBTITLES (Rendered directly on canvas)
    ============================================================ */
-const params = new URLSearchParams(location.search);
-const STILL = params.has('t');
+let SHOW_SUBTITLES = true;
+
+function drawSubtitles(ctx, t, segId){
+  if (!SHOW_SUBTITLES) return;
+  if (typeof getLyricAt !== 'function') return;
+  const lyr = getLyricAt(t);
+  if (!lyr || lyr.alpha <= 0.01) return;
+
+  ctx.save();
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.globalCompositeOperation = 'source-over';
+
+  const cx = W * 0.5;
+  const cy = 992;
+  const a = lyr.alpha;
+
+  // Measure text
+  ctx.font = 'bold 22px ' + MONO;
+  const enW = ctx.measureText(lyr.text).width;
+  ctx.font = '500 15px "PingFang SC", "Microsoft YaHei", "Noto Sans SC", sans-serif';
+  const cnW = ctx.measureText(lyr.cn).width;
+  const pillW = Math.max(enW, cnW) + 52;
+  const pillH = 68;
+  const pillX = cx - pillW / 2;
+  const pillY = cy - 38;
+
+  // Translucent dark scrim pill
+  ctx.fillStyle = 'rgba(6, 6, 8, ' + (0.82 * a) + ')';
+  if (ctx.roundRect){
+    ctx.beginPath();
+    ctx.roundRect(pillX, pillY, pillW, pillH, 8);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(38, 38, 44, ' + (0.9 * a) + ')';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+  } else {
+    ctx.fillRect(pillX, pillY, pillW, pillH);
+    ctx.strokeStyle = 'rgba(38, 38, 44, ' + (0.9 * a) + ')';
+    ctx.strokeRect(pillX, pillY, pillW, pillH);
+  }
+
+  // Draw English line with karaoke timing
+  const words = lyr.words;
+  if (words && words.length > 0){
+    ctx.font = 'bold 22px ' + MONO;
+    const wordWidths = words.map(function(w){ return ctx.measureText(w.text + ' ').width; });
+    const totalW = wordWidths.reduce(function(sum, w){ return sum + w; }, 0);
+    let startX = cx - totalW / 2;
+    const textY = cy - 12;
+
+    for (let k = 0; k < words.length; k++){
+      const w = words[k];
+      const isPast = t >= w.end;
+      const isCurrent = t >= w.start && t < w.end;
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'middle';
+      if (isCurrent){
+        ctx.fillStyle = '#00F0FF';
+        ctx.shadowColor = '#00F0FF';
+        ctx.shadowBlur = 12;
+      } else if (isPast){
+        ctx.fillStyle = '#F0F0F2';
+        ctx.shadowBlur = 0;
+      } else {
+        ctx.fillStyle = 'rgba(240, 240, 242, 0.45)';
+        ctx.shadowBlur = 0;
+      }
+      ctx.globalAlpha = a;
+      ctx.fillText(w.text + (k < words.length - 1 ? ' ' : ''), startX, textY);
+      ctx.shadowBlur = 0;
+      startX += wordWidths[k];
+    }
+  } else {
+    ctx.font = 'bold 22px ' + MONO;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = lyr.caps ? '#00F0FF' : '#F0F0F2';
+    ctx.globalAlpha = a;
+    ctx.fillText(lyr.text, cx, cy - 12);
+  }
+
+  // Draw Chinese translation line
+  ctx.font = '500 15px "PingFang SC", "Microsoft YaHei", "Noto Sans SC", sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillStyle = 'rgba(234, 230, 223, 0.85)';
+  ctx.globalAlpha = a * 0.92;
+  ctx.fillText(lyr.cn, cx, cy + 18);
+
+  ctx.restore();
+}
+
+/* ============================================================
+   14 · RUNTIME & PLAYER CONTROLS
+   ============================================================ */
+const params = (typeof location !== 'undefined' && location.search) ? new URLSearchParams(location.search) : new Map();
+const STILL = params.has ? params.has('t') : false;
 
 const RT = {
   t: 0, playing: true, baseT: 0, baseWall: performance.now(), last: performance.now()
@@ -552,46 +650,149 @@ if (STILL){
   RT.playing = false;
 }
 
-/* ---------- the song ---------- */
-const SONG = new Audio('./song.mp3');
-SONG.preload = 'auto';
-let songOn = false;
-function startSong(){
-  if (songOn) return;
-  songOn = true;
-  try { SONG.currentTime = 0; } catch(e){}
-  SONG.muted = false;
-  SONG.volume = 1;
+const SONG = (typeof Audio !== 'undefined') ? new Audio('./song.mp3') : null;
+if (SONG) SONG.preload = 'auto';
+
+let songStarted = false;
+let lastSongTime = 0;
+let lastSongWall = performance.now();
+let userVolume = 1.0;
+let isMuted = false;
+
+function playAudio(){
+  if (!SONG) return;
+  if (!songStarted){
+    songStarted = true;
+    try {
+      if (Math.abs(SONG.currentTime - RT.t) > 0.05) {
+        SONG.currentTime = clamp(RT.t, 0, DURATION);
+      }
+    } catch(e){}
+    SONG.volume = userVolume;
+    SONG.muted = isMuted;
+  }
   const p = SONG.play();
-  if (p && p.catch) p.catch(function(err){
-    songOn = false;
-    document.title = 'sound blocked: ' + err.name;
-  });
-  RT.baseT = 0; RT.baseWall = performance.now(); RT.t = 0;
-  document.title = 'world.execute(me);';
+  if (p && p.catch) {
+    p.catch(function(err){
+      console.warn('Audio play blocked:', err);
+    });
+  }
+  RT.playing = true;
+  lastSongTime = SONG.currentTime || RT.t;
+  lastSongWall = performance.now();
+  RT.baseT = RT.t;
+  RT.baseWall = performance.now();
+  updateUIPlayState();
 }
-SONG.addEventListener('error', function(){
-  const e = SONG.error;
-  document.title = 'AUDIO ERR ' + (e ? e.code + ':' + e.message : '?') + ' src=' + SONG.currentSrc.slice(-40);
-});
-['pointerdown','pointerup','mousedown','touchstart','keydown','wheel','focus'].forEach(function(ev){
-  window.addEventListener(ev, startSong, { passive: true });
-});
-document.addEventListener('visibilitychange', function(){
-  if (!document.hidden && !songOn) startSong();
-});
+
+function pauseAudio(){
+  if (SONG && !SONG.paused){
+    try { SONG.pause(); } catch(e){}
+  }
+  RT.playing = false;
+  updateUIPlayState();
+}
+
+function togglePlay(){
+  if (RT.playing && SONG && !SONG.paused) {
+    pauseAudio();
+  } else {
+    playAudio();
+  }
+}
 
 function seekTo(t){
-  RT.t = clamp(t, 0, DURATION);
-  RT.baseT = RT.t; RT.baseWall = performance.now(); RT.last = performance.now();
-  renderFrameAt(RT.t);
+  const target = clamp(t, 0, DURATION);
+  RT.t = target;
+  RT.baseT = target;
+  RT.baseWall = performance.now();
+  lastSongTime = target;
+  lastSongWall = performance.now();
+  if (SONG){
+    try { SONG.currentTime = target; } catch(e){}
+  }
+  renderFrameAt(target);
+  updateTimelineUI(target);
+}
+
+function setVolume(v){
+  userVolume = clamp(v, 0, 1);
+  isMuted = (userVolume === 0);
+  if (SONG){
+    SONG.volume = userVolume;
+    SONG.muted = isMuted;
+  }
+  updateVolumeUI();
+}
+
+function toggleMute(){
+  isMuted = !isMuted;
+  if (SONG) SONG.muted = isMuted;
+  updateVolumeUI();
+}
+
+function jumpSegment(dir){
+  const cur = segAt(RT.t);
+  let nextIdx = cur.id - 1 + dir;
+  nextIdx = clamp(nextIdx, 0, SEGS.length - 1);
+  seekTo(SEGS[nextIdx].a);
+}
+
+function formatTime(s){
+  s = Math.max(0, s);
+  const m = Math.floor(s / 60);
+  const sec = Math.floor(s % 60);
+  return (m < 10 ? '0' : '') + m + ':' + (sec < 10 ? '0' : '') + sec;
+}
+
+function updateTimelineUI(t){
+  if (typeof document === 'undefined') return;
+  const pct = (t / DURATION) * 100;
+  const fill = document.getElementById('timeline-fill');
+  const thumb = document.getElementById('timeline-thumb');
+  const timeText = document.getElementById('time-text');
+  const segBadge = document.getElementById('seg-badge');
+
+  if (fill) fill.style.width = pct + '%';
+  if (thumb) thumb.style.left = pct + '%';
+  if (timeText) timeText.textContent = formatTime(t) + ' / ' + formatTime(DURATION);
+  if (segBadge){
+    const curSeg = segAt(t);
+    segBadge.textContent = '[' + pad2(curSeg.id) + '] ' + curSeg.name;
+  }
+}
+
+function updateUIPlayState(){
+  if (typeof document === 'undefined') return;
+  const iconPlay = document.getElementById('icon-play');
+  const iconPause = document.getElementById('icon-pause');
+  const isPlaying = RT.playing && (!SONG || !SONG.paused);
+  if (iconPlay && iconPause){
+    iconPlay.style.display = isPlaying ? 'none' : 'block';
+    iconPause.style.display = isPlaying ? 'block' : 'none';
+  }
+  const initOverlay = document.getElementById('init-overlay');
+  if (initOverlay && songStarted){
+    initOverlay.classList.add('hidden');
+  }
+}
+
+function updateVolumeUI(){
+  if (typeof document === 'undefined') return;
+  const range = document.getElementById('vol-range');
+  const iconOn = document.getElementById('icon-vol-on');
+  const iconOff = document.getElementById('icon-vol-off');
+  if (range) range.value = isMuted ? 0 : userVolume;
+  if (iconOn && iconOff){
+    iconOn.style.display = (isMuted || userVolume === 0) ? 'none' : 'block';
+    iconOff.style.display = (isMuted || userVolume === 0) ? 'block' : 'none';
+  }
 }
 
 /* ---------- self-recording ---------- */
 let rec = null, chunks = [];
 function startRec(){
   if (rec) return;
-  /* make sure the first frame exists before the recorder opens */
   seekTo(0);
   renderFrameAt(0);
   RT.playing = true;
@@ -634,20 +835,228 @@ function stopRec(){
   RT.playing = false;
 }
 
-/* ---------- loop ---------- */
+/* ---------- loop with continuous audio-clock smoothing ---------- */
 function loop(now){
   if (RT.playing){
-    const locked = songOn && !SONG.paused && SONG.readyState >= 2;
-    const t = clamp(locked ? SONG.currentTime : RT.baseT + (now - RT.baseWall) / 1000, 0, DURATION);
+    let t;
+    if (SONG && songStarted && !SONG.paused && SONG.readyState >= 2){
+      const cur = SONG.currentTime;
+      if (cur !== lastSongTime){
+        lastSongTime = cur;
+        lastSongWall = now;
+      }
+      // Continuous audio-wallclock interpolation eliminates 10Hz buffer stepping
+      const interp = lastSongTime + (now - lastSongWall) / 1000;
+      if (Math.abs(interp - cur) > 0.08){
+        lastSongTime = cur;
+        lastSongWall = now;
+        t = cur;
+      } else {
+        t = interp;
+      }
+    } else {
+      t = RT.baseT + (now - RT.baseWall) / 1000;
+    }
+    t = clamp(t, 0, DURATION);
     RT.t = t;
     if (t >= DURATION - 1e-4){
       renderFrameAt(DURATION);
-      if (rec) stopRec(); else RT.playing = false;
+      if (rec) stopRec(); else pauseAudio();
       return requestAnimationFrame(loop);
     }
     renderFrameAt(t);
+    updateTimelineUI(t);
   }
   requestAnimationFrame(loop);
+}
+
+function setupHUD(){
+  if (typeof document === 'undefined') return;
+
+  const initOverlay = document.getElementById('init-overlay');
+  const btnInit = document.getElementById('btn-init');
+  const hud = document.getElementById('player-hud');
+  const track = document.getElementById('timeline-track');
+  const container = document.getElementById('timeline-container');
+  const tooltip = document.getElementById('timeline-tooltip');
+  const chapters = document.getElementById('timeline-chapters');
+  const btnPlay = document.getElementById('btn-play');
+  const btnPrev = document.getElementById('btn-prev');
+  const btnNext = document.getElementById('btn-next');
+  const btnCC = document.getElementById('btn-cc');
+  const btnMute = document.getElementById('btn-mute');
+  const volRange = document.getElementById('vol-range');
+  const btnHelp = document.getElementById('btn-help');
+  const btnFullscreen = document.getElementById('btn-fullscreen');
+  const shortcutsModal = document.getElementById('shortcuts-modal');
+  const btnCloseShortcuts = document.getElementById('btn-close-shortcuts');
+  const stage = document.getElementById('stage');
+
+  if (params.get && (params.get('test') === '1' || params.get('record') === '1' || params.get('autotest') === '1')){
+    if (initOverlay) initOverlay.style.display = 'none';
+    if (hud) hud.style.display = 'none';
+    return;
+  }
+
+  // Populate chapter tick marks along timeline
+  if (chapters && typeof chapters.appendChild === 'function' && typeof SEGS !== 'undefined'){
+    chapters.innerHTML = '';
+    for (let i = 1; i < SEGS.length; i++){
+      const mark = document.createElement('div');
+      mark.className = 'chapter-mark';
+      mark.style.left = ((SEGS[i].a / DURATION) * 100) + '%';
+      chapters.appendChild(mark);
+    }
+  }
+
+  function handleInit(){
+    if (!songStarted){
+      playAudio();
+    }
+    if (initOverlay) initOverlay.classList.add('hidden');
+  }
+  if (btnInit) btnInit.addEventListener('click', handleInit);
+  if (initOverlay) initOverlay.addEventListener('click', function(e){
+    if (e.target === initOverlay || e.target.closest('.init-card')) handleInit();
+  });
+
+  // Timeline scrubbing & hover
+  let isDragging = false;
+  function getTimelineTime(e){
+    const rect = track.getBoundingClientRect();
+    const x = clamp(e.clientX - rect.left, 0, rect.width);
+    return (x / rect.width) * DURATION;
+  }
+
+  if (container){
+    container.addEventListener('mousemove', function(e){
+      const t = getTimelineTime(e);
+      const seg = segAt(t);
+      if (tooltip){
+        tooltip.style.display = 'block';
+        const rect = track.getBoundingClientRect();
+        const x = clamp(e.clientX - rect.left, 0, rect.width);
+        tooltip.style.left = x + 'px';
+        tooltip.textContent = formatTime(t) + ' [' + pad2(seg.id) + '] ' + seg.name;
+      }
+      if (isDragging) seekTo(t);
+    });
+    container.addEventListener('mouseleave', function(){
+      if (tooltip) tooltip.style.display = 'none';
+    });
+    container.addEventListener('mousedown', function(e){
+      isDragging = true;
+      seekTo(getTimelineTime(e));
+    });
+  }
+  window.addEventListener('mouseup', function(){ isDragging = false; });
+  window.addEventListener('mousemove', function(e){
+    if (isDragging && container) seekTo(getTimelineTime(e));
+  });
+
+  // Controls
+  if (btnPlay) btnPlay.addEventListener('click', togglePlay);
+  if (btnPrev) btnPrev.addEventListener('click', function(){ jumpSegment(-1); });
+  if (btnNext) btnNext.addEventListener('click', function(){ jumpSegment(1); });
+  if (btnCC) btnCC.addEventListener('click', function(){
+    SHOW_SUBTITLES = !SHOW_SUBTITLES;
+    btnCC.classList.toggle('active', SHOW_SUBTITLES);
+    renderFrameAt(RT.t);
+  });
+  if (btnMute) btnMute.addEventListener('click', toggleMute);
+  if (volRange) volRange.addEventListener('input', function(e){
+    setVolume(parseFloat(e.target.value));
+  });
+  if (btnFullscreen) btnFullscreen.addEventListener('click', function(){
+    if (!document.fullscreenElement){
+      document.documentElement.requestFullscreen().catch(function(){});
+    } else {
+      document.exitFullscreen().catch(function(){});
+    }
+  });
+
+  // Canvas click to toggle play
+  if (stage){
+    stage.addEventListener('click', function(e){
+      if (!songStarted){
+        handleInit();
+      } else {
+        togglePlay();
+      }
+    });
+  }
+
+  // Help modal
+  if (btnHelp && shortcutsModal){
+    btnHelp.addEventListener('click', function(){
+      shortcutsModal.style.display = 'flex';
+    });
+  }
+  if (btnCloseShortcuts && shortcutsModal){
+    btnCloseShortcuts.addEventListener('click', function(){
+      shortcutsModal.style.display = 'none';
+    });
+  }
+  if (shortcutsModal){
+    shortcutsModal.addEventListener('click', function(e){
+      if (e.target === shortcutsModal) shortcutsModal.style.display = 'none';
+    });
+  }
+
+  // Keyboard shortcuts
+  window.addEventListener('keydown', function(e){
+    if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) return;
+    if (e.code === 'Space'){
+      e.preventDefault();
+      if (!songStarted) handleInit(); else togglePlay();
+    } else if (e.code === 'ArrowLeft'){
+      e.preventDefault(); seekTo(RT.t - 3);
+    } else if (e.code === 'ArrowRight'){
+      e.preventDefault(); seekTo(RT.t + 3);
+    } else if (e.code === 'ArrowUp'){
+      e.preventDefault(); setVolume(userVolume + 0.1);
+    } else if (e.code === 'ArrowDown'){
+      e.preventDefault(); setVolume(userVolume - 0.1);
+    } else if (e.code === 'BracketLeft'){
+      e.preventDefault(); jumpSegment(-1);
+    } else if (e.code === 'BracketRight'){
+      e.preventDefault(); jumpSegment(1);
+    } else if (e.code === 'KeyC'){
+      e.preventDefault();
+      SHOW_SUBTITLES = !SHOW_SUBTITLES;
+      if (btnCC) btnCC.classList.toggle('active', SHOW_SUBTITLES);
+      renderFrameAt(RT.t);
+    } else if (e.code === 'KeyM'){
+      e.preventDefault(); toggleMute();
+    } else if (e.code === 'KeyF'){
+      e.preventDefault();
+      if (!document.fullscreenElement) document.documentElement.requestFullscreen().catch(function(){});
+      else document.exitFullscreen().catch(function(){});
+    } else if (e.code === 'KeyH' || e.key === '?'){
+      e.preventDefault();
+      if (shortcutsModal) shortcutsModal.style.display = (shortcutsModal.style.display === 'flex' ? 'none' : 'flex');
+    } else if (e.key === ',' && !RT.playing){
+      e.preventDefault(); seekTo(RT.t - 1/60);
+    } else if (e.key === '.' && !RT.playing){
+      e.preventDefault(); seekTo(RT.t + 1/60);
+    }
+  });
+
+  // Auto-hide HUD on idle
+  let hudTimeout = null;
+  function resetHudIdle(){
+    if (hud) hud.classList.remove('hidden');
+    document.body.classList.remove('idle');
+    clearTimeout(hudTimeout);
+    if (RT.playing && songStarted){
+      hudTimeout = setTimeout(function(){
+        if (hud && RT.playing) hud.classList.add('hidden');
+        if (RT.playing) document.body.classList.add('idle');
+      }, 2500);
+    }
+  }
+  window.addEventListener('mousemove', resetHudIdle);
+  window.addEventListener('touchstart', resetHudIdle, { passive: true });
 }
 
 window.renderFrameAt = function(t){ return renderFrameAt(t); };
@@ -661,24 +1070,28 @@ window.BeatEngine = beatAt;
 window.MorphBuffer = { size: 64, evalAt: function(t){ return evalMorph(stateAt(t)); } };
 window.__MV_READY__ = true;
 
-document.title = 'world.execute(me); — click for sound';
-if (params.get('autotest') === '1'){
+document.title = 'world.execute(me);';
+
+if (params.get && params.get('autotest') === '1'){
   window.__AUDIO__ = 'loading';
-  SONG.addEventListener('canplaythrough', function(){ window.__AUDIO__ = 'canplay ' + SONG.duration.toFixed(1); });
-  SONG.addEventListener('error', function(){
-    const e = SONG.error;
-    window.__AUDIO__ = 'ERR ' + (e ? e.code : '?');
-  });
-  SONG.play().then(function(){ window.__AUDIO__ = 'PLAYING ' + SONG.duration.toFixed(1); })
-             .catch(function(err){ window.__AUDIO__ = 'REJECT ' + err.name; });
+  if (SONG){
+    SONG.addEventListener('canplaythrough', function(){ window.__AUDIO__ = 'canplay ' + SONG.duration.toFixed(1); });
+    SONG.addEventListener('error', function(){
+      const e = SONG.error;
+      window.__AUDIO__ = 'ERR ' + (e ? e.code : '?');
+    });
+    SONG.play().then(function(){ window.__AUDIO__ = 'PLAYING ' + SONG.duration.toFixed(1); })
+               .catch(function(err){ window.__AUDIO__ = 'REJECT ' + err.name; });
+  }
   setTimeout(function(){
     ctx.fillStyle = '#000'; ctx.fillRect(0, 0, 900, 90);
     ctx.fillStyle = '#0f0'; ctx.font = '22px monospace';
-    ctx.fillText('AUDIO: ' + window.__AUDIO__ + ' rs=' + SONG.readyState, 20, 50);
+    ctx.fillText('AUDIO: ' + window.__AUDIO__ + ' rs=' + (SONG ? SONG.readyState : 'none'), 20, 50);
   }, 2000);
 }
+
 /* ---------- isolated verification: one screen, N times (grid contact sheet) ---------- */
-if (params.get('test') === '1'){
+if (params.get && params.get('test') === '1'){
   const times = (params.get('times') || '0').split(',').map(Number);
   const n = times.length;
   const cols = Number(params.get('cols')) || (n <= 4 ? n : 5);
@@ -710,10 +1123,11 @@ if (params.get('test') === '1'){
   document.title = 'TEST ' + times.length + ' frames';
   const up = params.get('upload');
   if (up) canvas.toBlob(function(b){ fetch(up, { method:'POST', body:b, mode:'cors' }); }, 'image/png');
-  return;
+} else {
+  if (typeof document !== 'undefined' && document.getElementById && document.getElementById('player-hud')) setupHUD();
+  renderFrameAt(RT.t);
+  updateTimelineUI(RT.t);
+  if (params.get && params.get('record') === '1') setTimeout(startRec, 300);
+  requestAnimationFrame(loop);
 }
-
-renderFrameAt(RT.t);
-if (params.get('record') === '1') setTimeout(startRec, 300);
-requestAnimationFrame(loop);
 })();

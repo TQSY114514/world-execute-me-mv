@@ -14,12 +14,413 @@
         background:rgba(6,6,8,.9);z-index:20;color:#00F0FF;font-size:12px;letter-spacing:.3em}
   #drop.on{display:flex}
   body.idle{cursor:none}
+
+  /* Player Transport HUD */
+  #player-hud {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding: 12px 24px 16px;
+    background: linear-gradient(0deg, rgba(6,6,8,0.94) 0%, rgba(6,6,8,0.72) 70%, transparent 100%);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    z-index: 50;
+    user-select: none;
+    transition: opacity 0.35s ease, transform 0.35s ease;
+    pointer-events: auto;
+    font-family: inherit;
+  }
+  #player-hud.hidden {
+    opacity: 0;
+    transform: translateY(12px);
+    pointer-events: none;
+  }
+
+  /* Timeline */
+  #timeline-container {
+    position: relative;
+    width: 100%;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+  }
+  #timeline-tooltip {
+    position: absolute;
+    top: -30px;
+    left: 0;
+    transform: translateX(-50%);
+    background: rgba(6,6,8,0.94);
+    border: 1px solid #00F0FF;
+    color: #00F0FF;
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 4px;
+    pointer-events: none;
+    white-space: nowrap;
+    display: none;
+    font-family: inherit;
+    box-shadow: 0 0 10px rgba(0,240,255,0.3);
+  }
+  #timeline-track {
+    position: relative;
+    width: 100%;
+    height: 5px;
+    background: rgba(255,255,255,0.18);
+    border-radius: 3px;
+    overflow: visible;
+    transition: height 0.15s ease;
+  }
+  #timeline-container:hover #timeline-track {
+    height: 8px;
+  }
+  #timeline-fill {
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 0%;
+    background: #00F0FF;
+    border-radius: 3px;
+    box-shadow: 0 0 8px rgba(0,240,255,0.6);
+  }
+  #timeline-thumb {
+    position: absolute;
+    top: 50%;
+    left: 0%;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: #FFFFFF;
+    border: 2px solid #00F0FF;
+    transform: translate(-50%, -50%) scale(0);
+    transition: transform 0.15s ease;
+    box-shadow: 0 0 8px #00F0FF;
+  }
+  #timeline-container:hover #timeline-thumb {
+    transform: translate(-50%, -50%) scale(1);
+  }
+  .chapter-mark {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: rgba(0,0,0,0.75);
+    pointer-events: none;
+  }
+
+  /* Controls Bar */
+  #controls-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    color: #F0F0F2;
+    font-size: 13px;
+  }
+  .ctrl-group {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .ctrl-btn {
+    background: none;
+    border: none;
+    color: #A0A0A8;
+    padding: 6px;
+    border-radius: 4px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: color 0.15s, background 0.15s, transform 0.1s;
+    outline: none;
+  }
+  .ctrl-btn:hover {
+    color: #00F0FF;
+    background: rgba(0,240,255,0.1);
+  }
+  .ctrl-btn:active {
+    transform: scale(0.95);
+  }
+  .ctrl-btn.active {
+    color: #00F0FF;
+    background: rgba(0,240,255,0.12);
+  }
+  .btn-text {
+    font-family: inherit;
+    font-weight: bold;
+    font-size: 11px;
+    letter-spacing: 0.05em;
+    padding: 0 4px;
+  }
+  #time-text {
+    font-size: 12px;
+    color: #F0F0F2;
+    letter-spacing: 0.05em;
+    font-variant-numeric: tabular-nums;
+  }
+  #seg-badge {
+    font-size: 11px;
+    color: #00F0FF;
+    background: rgba(0,240,255,0.12);
+    border: 1px solid rgba(0,240,255,0.3);
+    padding: 3px 8px;
+    border-radius: 3px;
+    letter-spacing: 0.08em;
+    white-space: nowrap;
+  }
+
+  /* Volume Slider */
+  .vol-group {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  #vol-range {
+    -webkit-appearance: none;
+    width: 64px;
+    height: 4px;
+    background: rgba(255,255,255,0.25);
+    border-radius: 2px;
+    outline: none;
+    cursor: pointer;
+  }
+  #vol-range::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #00F0FF;
+    cursor: pointer;
+  }
+
+  /* Init Overlay */
+  #init-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(6,6,8,0.85);
+    backdrop-filter: blur(8px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+    transition: opacity 0.4s ease;
+  }
+  #init-overlay.hidden {
+    opacity: 0;
+    pointer-events: none;
+  }
+  .init-card {
+    text-align: center;
+    padding: 40px 60px;
+    border: 1px solid rgba(0,240,255,0.35);
+    background: rgba(12,12,16,0.92);
+    border-radius: 8px;
+    box-shadow: 0 0 30px rgba(0,240,255,0.15);
+  }
+  .init-badge {
+    font-size: 11px;
+    letter-spacing: 0.35em;
+    color: #00F0FF;
+    margin-bottom: 12px;
+  }
+  .init-title {
+    font-size: 32px;
+    font-weight: bold;
+    color: #F0F0F2;
+    letter-spacing: 0.1em;
+    margin-bottom: 8px;
+  }
+  .init-meta {
+    font-size: 11px;
+    color: #A0A0A8;
+    letter-spacing: 0.2em;
+    margin-bottom: 28px;
+  }
+  .init-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 28px;
+    background: #00F0FF;
+    color: #060608;
+    border: none;
+    border-radius: 4px;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: bold;
+    letter-spacing: 0.15em;
+    cursor: pointer;
+    transition: background 0.2s, box-shadow 0.2s, transform 0.1s;
+  }
+  .init-btn:hover {
+    background: #33F5FF;
+    box-shadow: 0 0 20px rgba(0,240,255,0.6);
+    transform: translateY(-1px);
+  }
+  .init-hint {
+    font-size: 11px;
+    color: #666672;
+    margin-top: 16px;
+    letter-spacing: 0.1em;
+  }
+
+  /* Shortcuts Modal */
+  .modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.7);
+    backdrop-filter: blur(4px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 120;
+  }
+  .modal-card {
+    width: 440px;
+    background: #0D0D12;
+    border: 1px solid #26262C;
+    border-radius: 8px;
+    padding: 24px;
+    box-shadow: 0 12px 32px rgba(0,0,0,0.8);
+    font-family: inherit;
+  }
+  .modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #26262C;
+    padding-bottom: 12px;
+    margin-bottom: 16px;
+  }
+  .modal-title {
+    font-size: 13px;
+    font-weight: bold;
+    color: #00F0FF;
+    letter-spacing: 0.15em;
+  }
+  .modal-close {
+    background: none;
+    border: none;
+    color: #A0A0A8;
+    font-size: 20px;
+    cursor: pointer;
+  }
+  .modal-close:hover { color: #FFF; }
+  .modal-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .shortcut-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 12px;
+  }
+  .shortcut-row .key {
+    color: #00F0FF;
+    background: rgba(0,240,255,0.08);
+    border: 1px solid rgba(0,240,255,0.25);
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-family: inherit;
+    font-weight: bold;
+  }
+  .shortcut-row .desc {
+    color: #A0A0A8;
+  }
 </style>
 </head>
 <body>
 <canvas id="stage" width="1920" height="1080"></canvas>
 <div id="drop">drop audio to sync</div>
 <input id="file" type="file" accept="audio/*" hidden>
+
+<!-- Initial execution trigger overlay -->
+<div id="init-overlay">
+  <div class="init-card">
+    <div class="init-badge">DS · WORLD.EXECUTE(ME)</div>
+    <div class="init-title">world.execute(me);</div>
+    <div class="init-meta">130 BPM · 19 SEGMENTS · 03:32.50 · V4 DIRECTOR'S CUT</div>
+    <button id="btn-init" class="init-btn">
+      <span class="btn-icon">▶</span>
+      <span>INITIALIZE SIMULATION</span>
+    </button>
+    <div class="init-hint">Click anywhere or press Space to execute</div>
+  </div>
+</div>
+
+<!-- Player Transport HUD -->
+<div id="player-hud">
+  <div id="timeline-container">
+    <div id="timeline-tooltip">00:00 [01] BOOT_SEQUENCE</div>
+    <div id="timeline-track">
+      <div id="timeline-fill"></div>
+      <div id="timeline-thumb"></div>
+      <div id="timeline-chapters"></div>
+    </div>
+  </div>
+
+  <div id="controls-bar">
+    <div class="ctrl-group left">
+      <button id="btn-play" class="ctrl-btn" title="Play / Pause (Space)">
+        <svg id="icon-play" viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+        <svg id="icon-pause" viewBox="0 0 24 24" width="20" height="20" fill="currentColor" style="display:none;"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+      </button>
+      <div id="time-text">00:00 / 03:32</div>
+      <div id="seg-badge">[01] BOOT_SEQUENCE</div>
+    </div>
+
+    <div class="ctrl-group right">
+      <button id="btn-prev" class="ctrl-btn" title="Previous Segment ([)">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/></svg>
+      </button>
+      <button id="btn-next" class="ctrl-btn" title="Next Segment (])">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/></svg>
+      </button>
+      <button id="btn-cc" class="ctrl-btn active" title="Toggle Subtitles (C)">
+        <span class="btn-text">CC</span>
+      </button>
+      <div class="vol-group">
+        <button id="btn-mute" class="ctrl-btn" title="Mute / Unmute (M)">
+          <svg id="icon-vol-on" viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>
+          <svg id="icon-vol-off" viewBox="0 0 24 24" width="18" height="18" fill="currentColor" style="display:none;"><path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z"/></svg>
+        </button>
+        <input id="vol-range" type="range" min="0" max="1" step="0.01" value="1" title="Volume">
+      </div>
+      <button id="btn-help" class="ctrl-btn" title="Keyboard Shortcuts (?)">
+        <span class="btn-text">?</span>
+      </button>
+      <button id="btn-fullscreen" class="ctrl-btn" title="Fullscreen (F)">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/></svg>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Shortcuts Modal -->
+<div id="shortcuts-modal" class="modal-backdrop" style="display:none;">
+  <div class="modal-card">
+    <div class="modal-header">
+      <span class="modal-title">KEYBOARD CONTROLS</span>
+      <button id="btn-close-shortcuts" class="modal-close">&times;</button>
+    </div>
+    <div class="modal-grid">
+      <div class="shortcut-row"><span class="key">Space</span><span class="desc">Play / Pause</span></div>
+      <div class="shortcut-row"><span class="key">← / →</span><span class="desc">Seek ±3 seconds</span></div>
+      <div class="shortcut-row"><span class="key">↑ / ↓</span><span class="desc">Volume ±10%</span></div>
+      <div class="shortcut-row"><span class="key">[ / ]</span><span class="desc">Prev / Next Chapter</span></div>
+      <div class="shortcut-row"><span class="key">C</span><span class="desc">Toggle Subtitles</span></div>
+      <div class="shortcut-row"><span class="key">M</span><span class="desc">Mute / Unmute</span></div>
+      <div class="shortcut-row"><span class="key">F</span><span class="desc">Fullscreen</span></div>
+      <div class="shortcut-row"><span class="key">, / .</span><span class="desc">Frame Step (Paused)</span></div>
+      <div class="shortcut-row"><span class="key">?</span><span class="desc">Toggle Help</span></div>
+    </div>
+  </div>
+</div>
 <script>
 
 (() => {
@@ -4092,10 +4493,45 @@ BREACH_REGISTRY[9] = function(c, s){
   c.globalAlpha = 1;
 };
 
-/* lyric line timings — 129 lines, start / emphasis / section.
-   Timing measured from the song by the lyric-mv project (refs/d, MIT / CC BY-NC-SA);
-   no lyric text is used here, only the line boundaries. */
+/* ============================================================
+   45 · LYRICS ENGINE (Bilingual English + Chinese)
+   129 verified lines synchronized with album audio & word timings
+   ============================================================ */
+
 const LYRIC_TIMES = [[0.1,0,0],[1.74,0,0],[2.92,1,0],[3.873,0,0],[5.491,0,0],[6.38,1,0],[7.446,0,0],[10.091,1,0],[11.095,0,0],[12.906,0,0],[13.891,1,0],[16,0,0],[29.709,0,1],[31.116,0,1],[32.682,1,1],[33.412,0,1],[34.646,0,1],[36.287,1,1],[37.067,0,1],[38.596,0,1],[40.049,1,1],[40.706,0,1],[42.346,0,1],[43.507,1,1],[44.452,0,1],[45.85,0,1],[47.672,0,1],[49.534,0,1],[51.363,0,1],[53.225,0,1],[55.083,0,1],[56.916,0,1],[59.223,0,1],[59.687,0,1],[61.958,1,1],[62.589,0,1],[63.535,0,1],[65.397,1,1],[66.601,0,1],[68.252,0,1],[69.259,1,1],[70.084,0,1],[71.764,0,1],[73.169,1,1],[74.045,0,1],[75.422,0,1],[76.959,1,1],[77.576,0,1],[79.226,0,1],[80.62,1,1],[81.351,0,1],[82.833,0,1],[84.268,1,1],[85.078,0,1],[86.538,0,1],[87.922,1,1],[88.587,0,1],[90.197,0,1],[92.015,0,1],[93.953,0,1],[95.465,0,1],[97.739,0,1],[99.349,0,1],[101.474,0,1],[103.489,0,1],[104.197,0,1],[106.293,1,1],[107.22,0,1],[107.903,0,1],[110.221,1,1],[110.9,0,1],[112.22,0,1],[113.1,0,1],[114.18,0,1],[114.92,0,1],[115.78,0,1],[117.274,1,1],[118.333,0,1],[118.979,0,1],[120.86,1,1],[121.728,0,1],[122.714,0,1],[124.89,1,1],[125.708,0,1],[128.661,0,1],[131.224,1,1],[147.66,1,2],[148.6,1,2],[149.52,1,2],[150.54,1,2],[151.52,1,2],[152.28,1,2],[153.16,1,2],[153.98,1,2],[155.2,1,2],[156.08,1,2],[157.04,1,2],[158,1,2],[158.9,1,2],[159.321,1,2],[159.657,1,2],[160.244,1,2],[160.693,1,2],[161.124,1,2],[161.584,1,2],[162.632,0,2],[163.315,0,2],[165.166,1,2],[166.016,0,2],[167.022,0,2],[168.911,1,2],[169.824,0,2],[171.868,0,2],[172.712,1,2],[173.643,0,2],[174.975,0,2],[177.246,0,2],[178.173,0,2],[179.929,1,2],[180.857,0,2],[181.901,0,2],[183.646,1,2],[184.54,0,2],[187.665,1,2],[188.483,0,2],[189.746,0,2],[190.801,0,2],[191.356,1,2],[205.811,1,3]];
+
+const LYRICS_DATA = [{"i":0,"s":0.24,"e":1.91,"t":"Switch on the power line","cn":"接通电源线","c":0,"w":[[0.24,0.72,"Switch"],[0.84,1.05,"on"],[1.08,1.18,"the"],[1.22,1.57,"power"],[1.6,1.91,"line"]]},{"i":1,"s":1.94,"e":3.27,"t":"Remember to put on","cn":"记得穿戴好","c":0,"w":[[1.94,2.55,"Remember"],[2.58,2.73,"to"],[2.8,3.06,"put"],[3.14,3.27,"on"]]},{"i":2,"s":3.3,"e":3.99,"t":"PROTECTION","cn":"防护装备","c":1,"w":[[3.3,3.99,"PROTECTION"]]},{"i":3,"s":4.02,"e":5.63,"t":"Lay down your pieces","cn":"铺陈下你的碎片","c":0,"w":[[4.02,4.27,"Lay"],[4.42,4.71,"down"],[4.74,4.86,"your"],[4.9,5.63,"pieces"]]},{"i":4,"s":5.66,"e":6.53,"t":"And let's begin","cn":"让我们开始","c":0,"w":[[5.66,5.79,"And"],[5.82,6.01,"let's"],[6.04,6.53,"begin"]]},{"i":5,"s":6.56,"e":7.63,"t":"OBJECT CREATION","cn":"对象创建","c":1,"w":[[6.56,6.88,"OBJECT"],[6.9,7.63,"CREATION"]]},{"i":6,"s":7.66,"e":10.25,"t":"Fill in my data parameters","cn":"填入我的数据参数","c":0,"w":[[7.66,7.95,"Fill"],[8.18,8.41,"in"],[8.44,8.57,"my"],[8.6,9.17,"data"],[9.26,10.25,"parameters"]]},{"i":7,"s":10.28,"e":11.31,"t":"INITIALIZATION","cn":"初始化","c":1,"w":[[10.28,11.31,"INITIALIZATION"]]},{"i":8,"s":11.34,"e":12.99,"t":"Set up our new world","cn":"建立起我们的新世界","c":0,"w":[[11.34,11.58,"Set"],[11.88,12.04,"up"],[12.2,12.27,"our"],[12.3,12.57,"new"],[12.6,12.99,"world"]]},{"i":9,"s":13.02,"e":14.09,"t":"And let's begin the","cn":"让我们开始这场","c":0,"w":[[13.02,13.19,"And"],[13.22,13.4,"let's"],[13.42,13.87,"begin"],[13.9,14.09,"the"]]},{"i":10,"s":14.12,"e":15.1,"t":"SIMULATION","cn":"模拟","c":1,"w":[[14.12,15.1,"SIMULATION"]]},{"i":11,"s":16,"e":17.85,"t":"world.execute(me);","cn":"world.execute(me);","c":0,"w":[[16,17.85,"world.execute(me);"]]},{"i":12,"s":29.9,"e":31.41,"t":"If I'm a set of points","cn":"若我是一个点集","c":0,"w":[[29.9,30.09,"If"],[30.5,30.59,"I'm"],[30.62,30.67,"a"],[30.7,30.89,"set"],[30.92,31,"of"],[31.06,31.41,"points"]]},{"i":13,"s":31.44,"e":32.83,"t":"Then I will give you my","cn":"我便予你我的","c":0,"w":[[31.44,31.79,"Then"],[31.82,31.87,"I"],[31.9,32.08,"will"],[32.12,32.39,"give"],[32.42,32.55,"you"],[32.58,32.83,"my"]]},{"i":14,"s":32.86,"e":33.59,"t":"DIMENSION","cn":"维度","c":1,"w":[[32.86,33.59,"DIMENSION"]]},{"i":15,"s":33.62,"e":35.09,"t":"If I'm a circle","cn":"若我是一个圆","c":0,"w":[[33.62,34.15,"If"],[34.18,34.29,"I'm"],[34.32,34.37,"a"],[34.4,35.09,"circle"]]},{"i":16,"s":35.12,"e":36.49,"t":"Then I will give you my","cn":"我便予你我的","c":0,"w":[[35.12,35.51,"Then"],[35.54,35.57,"I"],[35.6,35.79,"will"],[35.82,36.09,"give"],[36.12,36.25,"you"],[36.28,36.49,"my"]]},{"i":17,"s":36.52,"e":37.27,"t":"CIRCUMFERENCE","cn":"周长","c":1,"w":[[36.52,37.27,"CIRCUMFERENCE"]]},{"i":18,"s":37.3,"e":38.8,"t":"If I'm a sine wave","cn":"若我是一列正弦波","c":0,"w":[[37.3,37.83,"If"],[37.86,37.98,"I'm"],[38,38.05,"a"],[38.08,38.47,"sine"],[38.5,38.8,"wave"]]},{"i":19,"s":38.82,"e":40.41,"t":"Then you can sit on all my","cn":"你便能安坐于我所有的","c":0,"w":[[38.82,39.05,"Then"],[39.08,39.22,"you"],[39.26,39.45,"can"],[39.48,39.81,"sit"],[39.84,40.03,"on"],[40.06,40.17,"all"],[40.2,40.41,"my"]]},{"i":20,"s":40.44,"e":40.93,"t":"TANGENTS","cn":"切线之上","c":1,"w":[[40.44,40.93,"TANGENTS"]]},{"i":21,"s":40.96,"e":42.46,"t":"If I approach infinity","cn":"若我趋向无穷","c":0,"w":[[40.96,41.21,"If"],[41.24,41.27,"I"],[41.27,41.61,"approach"],[41.64,42.46,"infinity"]]},{"i":22,"s":42.5,"e":43.67,"t":"Then you can be my","cn":"你便能作为我的","c":0,"w":[[42.5,42.73,"Then"],[42.76,42.9,"you"],[42.94,43.17,"can"],[43.2,43.41,"be"],[43.44,43.67,"my"]]},{"i":23,"s":43.7,"e":44.52,"t":"LIMITATIONS","cn":"极限边界","c":1,"w":[[43.7,44.52,"LIMITATIONS"]]},{"i":24,"s":44.54,"e":46,"t":"Switch my current","cn":"切换我的电流","c":0,"w":[[44.54,45.02,"Switch"],[45.08,45.41,"my"],[45.46,46,"current"]]},{"i":25,"s":46.2,"e":47.85,"t":"To AC to DC","cn":"忽为交番 忽为直注","c":0,"w":[[46.2,46.49,"To"],[46.52,46.99,"AC"],[47.1,47.33,"to"],[47.36,47.85,"DC"]]},{"i":26,"s":47.88,"e":49.66,"t":"And then blind my vision","cn":"遮蔽我的视线","c":0,"w":[[47.88,48.02,"And"],[48.04,48.25,"then"],[48.28,48.71,"blind"],[48.74,49.14,"my"],[49.2,49.66,"vision"]]},{"i":27,"s":49.86,"e":51.59,"t":"So dizzy so dizzy","cn":"如此目眩 如此目眩","c":0,"w":[[49.86,50.09,"So"],[50.12,50.6,"dizzy"],[50.8,51.01,"so"],[51.04,51.59,"dizzy"]]},{"i":28,"s":51.62,"e":53.33,"t":"Oh we can travel","cn":"我们可以跨越时空","c":0,"w":[[51.62,51.95,"Oh"],[51.98,52.35,"we"],[52.38,52.81,"can"],[52.84,53.33,"travel"]]},{"i":29,"s":53.56,"e":55.27,"t":"To A.D to B.C","cn":"自公元后至公元前","c":0,"w":[[53.56,53.89,"To"],[53.92,54.42,"A.D"],[54.48,54.71,"to"],[54.74,55.27,"B.C"]]},{"i":30,"s":55.3,"e":57.23,"t":"And we can unite","cn":"我们可以紧紧相融","c":0,"w":[[55.3,55.63,"And"],[55.66,56.05,"we"],[56.08,56.63,"can"],[56.66,57.23,"unite"]]},{"i":31,"s":57.26,"e":59.41,"t":"So deeply so deeply","cn":"如此深陷 如此深陷","c":0,"w":[[57.26,57.47,"So"],[57.5,58.03,"deeply"],[58.16,58.41,"so"],[58.44,59.41,"deeply"]]},{"i":32,"s":59.44,"e":60.35,"t":"If I can","cn":"若我能够","c":0,"w":[[59.44,59.97,"If"],[60,60.03,"I"],[60.03,60.35,"can"]]},{"i":33,"s":60.38,"e":62.05,"t":"If I can give you all the","cn":"若我能予你所有的","c":0,"w":[[60.38,60.85,"If"],[60.88,60.91,"I"],[60.94,61.17,"can"],[61.2,61.48,"give"],[61.48,61.71,"you"],[61.74,61.88,"all"],[61.9,62.05,"the"]]},{"i":34,"s":62.08,"e":63.04,"t":"STIMULATIONS","cn":"刺激与欣喜","c":1,"w":[[62.08,63.04,"STIMULATIONS"]]},{"i":35,"s":63.04,"e":63.95,"t":"Then I can","cn":"那么我便能","c":0,"w":[[63.04,63.55,"Then"],[63.58,63.71,"I"],[63.74,63.95,"can"]]},{"i":36,"s":63.98,"e":65.77,"t":"Then I can be your only","cn":"成为你唯一的","c":0,"w":[[63.98,64.49,"Then"],[64.52,64.63,"I"],[64.66,64.87,"can"],[64.9,65.09,"be"],[65.12,65.47,"your"],[65.5,65.77,"only"]]},{"i":37,"s":65.8,"e":66.81,"t":"SATISFACTION","cn":"满足与愉悦","c":1,"w":[[65.8,66.81,"SATISFACTION"]]},{"i":38,"s":66.84,"e":68.71,"t":"If I can make you happy","cn":"若我能让你感到快乐","c":0,"w":[[66.84,67.29,"If"],[67.32,67.39,"I"],[67.42,67.63,"can"],[67.66,67.92,"make"],[67.94,68.07,"you"],[68.1,68.71,"happy"]]},{"i":39,"s":68.74,"e":69.55,"t":"I will run the","cn":"我将决意执行","c":0,"w":[[68.74,68.79,"I"],[68.82,69.03,"will"],[69.06,69.25,"run"],[69.28,69.55,"the"]]},{"i":40,"s":69.58,"e":70.41,"t":"EXECUTION","cn":"处决指令","c":1,"w":[[69.58,70.41,"EXECUTION"]]},{"i":41,"s":70.44,"e":71.87,"t":"Though we are trapped","cn":"即使我们被困于","c":0,"w":[[70.44,70.72,"Though"],[70.72,71.15,"we"],[71.18,71.31,"are"],[71.34,71.87,"trapped"]]},{"i":42,"s":71.9,"e":73.17,"t":"In this strange strange","cn":"这光怪陆离的","c":0,"w":[[71.9,72.03,"In"],[72.06,72.24,"this"],[72.26,72.67,"strange"],[72.7,73.17,"strange"]]},{"i":43,"s":73.2,"e":74.17,"t":"SIMULATION","cn":"模拟之中","c":1,"w":[[73.2,74.17,"SIMULATION"]]},{"i":44,"s":74.2,"e":75.69,"t":"If I'm an eggplant","cn":"若我是一颗茄子","c":0,"w":[[74.2,74.79,"If"],[74.82,74.96,"I'm"],[74.98,75.09,"an"],[75.12,75.69,"eggplant"]]},{"i":45,"s":75.72,"e":77.21,"t":"Then I will give you my","cn":"我便予你我的","c":0,"w":[[75.72,76.11,"Then"],[76.14,76.19,"I"],[76.22,76.39,"will"],[76.42,76.68,"give"],[76.7,76.87,"you"],[76.9,77.21,"my"]]},{"i":46,"s":77.24,"e":77.89,"t":"NUTRIENTS","cn":"养分","c":1,"w":[[77.24,77.89,"NUTRIENTS"]]},{"i":47,"s":77.92,"e":79.38,"t":"If I'm a tomato","cn":"若我是一颗番茄","c":0,"w":[[77.92,78.09,"If"],[78.5,78.64,"I'm"],[78.66,78.71,"a"],[78.74,79.38,"tomato"]]},{"i":48,"s":79.42,"e":80.63,"t":"Then I will give you","cn":"我便予你我的","c":0,"w":[[79.42,79.81,"Then"],[79.84,79.87,"I"],[79.9,80.08,"will"],[80.12,80.38,"give"],[80.4,80.63,"you"]]},{"i":49,"s":80.66,"e":81.55,"t":"ANTIOXIDANTS","cn":"抗氧化物","c":1,"w":[[80.66,81.55,"ANTIOXIDANTS"]]},{"i":50,"s":81.58,"e":83.1,"t":"If I'm a tabby cat","cn":"若我是一只虎斑猫","c":0,"w":[[81.58,81.94,"If"],[82.2,82.31,"I'm"],[82.34,82.41,"a"],[82.44,82.71,"tabby"],[82.78,83.1,"cat"]]},{"i":51,"s":83.14,"e":84.53,"t":"Then I will purr for your","cn":"我便为你轻声呼噜","c":0,"w":[[83.14,83.51,"Then"],[83.54,83.57,"I"],[83.6,83.75,"will"],[83.8,83.99,"purr"],[84.02,84.27,"for"],[84.3,84.53,"your"]]},{"i":52,"s":84.56,"e":85.27,"t":"ENJOYMENT","cn":"取悦于你","c":1,"w":[[84.56,85.27,"ENJOYMENT"]]},{"i":53,"s":85.3,"e":86.74,"t":"If I'm the only god","cn":"若我是唯一的神明","c":0,"w":[[85.3,85.63,"If"],[85.88,85.99,"I'm"],[86.02,86.13,"the"],[86.16,86.43,"only"],[86.46,86.74,"god"]]},{"i":54,"s":86.82,"e":88.25,"t":"Then you're the proof of my","cn":"那么你便是我","c":0,"w":[[86.82,87.03,"Then"],[87.06,87.26,"you're"],[87.26,87.4,"the"],[87.46,87.77,"proof"],[87.8,87.92,"of"],[88,88.25,"my"]]},{"i":55,"s":88.28,"e":88.88,"t":"EXISTENCE","cn":"存在的明证","c":1,"w":[[88.28,88.88,"EXISTENCE"]]},{"i":56,"s":88.88,"e":90.29,"t":"Switch my gender","cn":"切换我的性别","c":0,"w":[[88.88,89.29,"Switch"],[89.38,89.7,"my"],[89.76,90.29,"gender"]]},{"i":57,"s":90.46,"e":92.17,"t":"To F to M","cn":"忽为女身 忽为男躯","c":0,"w":[[90.46,90.83,"To"],[90.86,91.39,"F"],[91.42,91.71,"to"],[91.74,92.17,"M"]]},{"i":58,"s":92.2,"e":94,"t":"And then do whatever","cn":"随后尽你所欲","c":0,"w":[[92.2,92.57,"And"],[92.6,92.63,"then"],[92.63,93.03,"do"],[93.06,94,"whatever"]]},{"i":59,"s":94.1,"e":95.89,"t":"From AM to PM","cn":"朝朝暮暮 晨昏昼夜","c":0,"w":[[94.1,94.49,"From"],[94.52,95.09,"AM"],[95.12,95.33,"to"],[95.36,95.89,"PM"]]},{"i":60,"s":95.92,"e":97.65,"t":"Oh switch my role","cn":"调换我的身份角色","c":0,"w":[[95.92,96.21,"Oh"],[96.24,96.71,"switch"],[96.76,97.17,"my"],[97.2,97.65,"role"]]},{"i":61,"s":97.9,"e":99.45,"t":"To S to M","cn":"忽为被虐 忽为主宰","c":0,"w":[[97.9,98.19,"To"],[98.22,98.79,"S"],[98.82,99.11,"to"],[99.14,99.45,"M"]]},{"i":62,"s":99.48,"e":101.37,"t":"So we can enter","cn":"让我们一同跌入","c":0,"w":[[99.48,99.89,"So"],[99.98,100.37,"we"],[100.4,100.79,"can"],[100.96,101.37,"enter"]]},{"i":63,"s":101.56,"e":103.56,"t":"The trance the trance","cn":"迷醉狂喜的恍惚","c":0,"w":[[101.56,101.73,"The"],[101.76,102.48,"trance"],[102.48,102.65,"the"],[102.68,103.56,"trance"]]},{"i":64,"s":103.74,"e":104.65,"t":"If I can","cn":"若我能够","c":0,"w":[[103.74,104.25,"If"],[104.28,104.33,"I"],[104.36,104.65,"can"]]},{"i":65,"s":104.68,"e":106.41,"t":"If I can feel your","cn":"若我能感知到你的","c":0,"w":[[104.68,105.01,"If"],[105.18,105.23,"I"],[105.26,105.45,"can"],[105.48,105.93,"feel"],[105.96,106.41,"your"]]},{"i":66,"s":106.44,"e":107.39,"t":"VIBRATIONS","cn":"悸动与共鸣","c":1,"w":[[106.44,107.39,"VIBRATIONS"]]},{"i":67,"s":107.42,"e":108.25,"t":"Then I can","cn":"那么我便能","c":0,"w":[[107.42,107.93,"Then"],[107.96,108.01,"I"],[108.04,108.25,"can"]]},{"i":68,"s":108.28,"e":110.31,"t":"Then I can finally be","cn":"最终得以","c":0,"w":[[108.28,108.87,"Then"],[108.9,108.95,"I"],[108.98,109.15,"can"],[109.18,110.09,"finally"],[110.12,110.31,"be"]]},{"i":69,"s":110.34,"e":111.03,"t":"COMPLETION","cn":"圆满完整","c":1,"w":[[110.34,111.03,"COMPLETION"]]},{"i":70,"s":111.06,"e":112.43,"t":"Though you have left","cn":"即使你已离去","c":0,"w":[[111.06,111.45,"Though"],[111.48,111.69,"you"],[111.72,111.97,"have"],[112,112.43,"left"]]},{"i":71,"s":112.46,"e":113.35,"t":"You have left","cn":"你已抽身离去","c":0,"w":[[112.46,112.63,"You"],[112.66,112.89,"have"],[112.92,113.35,"left"]]},{"i":72,"s":113.38,"e":114.31,"t":"You have left","cn":"你已悄然离去","c":0,"w":[[113.38,113.55,"You"],[113.58,113.87,"have"],[113.9,114.31,"left"]]},{"i":73,"s":114.34,"e":115.15,"t":"You have left","cn":"你已弃我而去","c":0,"w":[[114.34,114.47,"You"],[114.5,114.77,"have"],[114.8,115.15,"left"]]},{"i":74,"s":115.18,"e":116.13,"t":"You have left","cn":"你已离我远去","c":0,"w":[[115.18,115.39,"You"],[115.42,115.69,"have"],[115.72,116.13,"left"]]},{"i":75,"s":116.18,"e":117.55,"t":"You have left me in","cn":"留我独自身陷","c":0,"w":[[116.18,116.33,"You"],[116.36,116.57,"have"],[116.6,116.96,"left"],[116.98,117.17,"me"],[117.32,117.55,"in"]]},{"i":76,"s":117.58,"e":118.51,"t":"ISOLATION","cn":"孤绝之境","c":1,"w":[[117.58,118.51,"ISOLATION"]]},{"i":77,"s":118.54,"e":119.43,"t":"If I can","cn":"若我能够","c":0,"w":[[118.54,118.9,"If"],[119.06,119.09,"I"],[119.12,119.43,"can"]]},{"i":78,"s":119.46,"e":121.61,"t":"If I can erase all the pointless","cn":"若我能抹去那些无谓的","c":0,"w":[[119.46,119.79,"If"],[119.96,120.01,"I"],[120.04,120.35,"can"],[120.38,120.77,"erase"],[120.8,120.93,"all"],[120.96,121.11,"the"],[121.16,121.61,"pointless"]]},{"i":79,"s":121.64,"e":122.14,"t":"FRAGMENTS","cn":"残片与尘埃","c":1,"w":[[121.64,122.14,"FRAGMENTS"]]},{"i":80,"s":122.14,"e":123.01,"t":"Then maybe","cn":"或许","c":0,"w":[[122.14,122.55,"Then"],[122.58,123.01,"maybe"]]},{"i":81,"s":123.04,"e":125.09,"t":"Then maybe you won't leave me so","cn":"你便不会留我如此","c":0,"w":[[123.04,123.47,"Then"],[123.5,123.95,"maybe"],[123.98,124.17,"you"],[124.2,124.42,"won't"],[124.42,124.64,"leave"],[124.66,124.83,"me"],[124.86,125.09,"so"]]},{"i":82,"s":125.12,"e":125.8,"t":"DISHEARTENED","cn":"心碎神伤","c":1,"w":[[125.12,125.8,"DISHEARTENED"]]},{"i":83,"s":125.82,"e":128.8,"t":"Challenging your god","cn":"妄图挑衅你的神明","c":0,"w":[[125.82,127.19,"Challenging"],[127.22,127.65,"your"],[127.68,128.8,"god"]]},{"i":84,"s":129.08,"e":131.3,"t":"You have made some","cn":"你已然违规传入","c":0,"w":[[129.08,129.25,"You"],[129.28,129.48,"have"],[129.56,130.43,"made"],[130.46,131.3,"some"]]},{"i":85,"s":131.46,"e":133.93,"t":"ILLEGAL ARGUMENTS","cn":"非法参数","c":1,"w":[[131.46,132.55,"ILLEGAL"],[132.58,133.93,"ARGUMENTS"]]},{"i":86,"s":148,"e":148.91,"t":"EXECUTION","cn":"处决","c":1,"w":[[148,148.91,"EXECUTION"]]},{"i":87,"s":148.94,"e":149.85,"t":"EXECUTION","cn":"处决","c":1,"w":[[148.94,149.85,"EXECUTION"]]},{"i":88,"s":149.88,"e":150.75,"t":"EXECUTION","cn":"处决","c":1,"w":[[149.88,150.75,"EXECUTION"]]},{"i":89,"s":150.78,"e":151.64,"t":"EXECUTION","cn":"处决","c":1,"w":[[150.78,151.64,"EXECUTION"]]},{"i":90,"s":151.72,"e":152.63,"t":"EXECUTION","cn":"处决","c":1,"w":[[151.72,152.63,"EXECUTION"]]},{"i":91,"s":152.66,"e":153.53,"t":"EXECUTION","cn":"处决","c":1,"w":[[152.66,153.53,"EXECUTION"]]},{"i":92,"s":153.56,"e":154.45,"t":"EXECUTION","cn":"处决","c":1,"w":[[153.56,154.45,"EXECUTION"]]},{"i":93,"s":154.48,"e":155.39,"t":"EXECUTION","cn":"处决","c":1,"w":[[154.48,155.39,"EXECUTION"]]},{"i":94,"s":155.42,"e":156.31,"t":"EXECUTION","cn":"处决","c":1,"w":[[155.42,156.31,"EXECUTION"]]},{"i":95,"s":156.34,"e":157.23,"t":"EXECUTION","cn":"处决","c":1,"w":[[156.34,157.23,"EXECUTION"]]},{"i":96,"s":157.26,"e":158.15,"t":"EXECUTION","cn":"处决","c":1,"w":[[157.26,158.15,"EXECUTION"]]},{"i":97,"s":158.18,"e":159.05,"t":"EXECUTION","cn":"处决","c":1,"w":[[158.18,159.05,"EXECUTION"]]},{"i":98,"s":159.16,"e":159.39,"t":"EIN","cn":"一 (德)","c":1,"w":[[159.16,159.39,"EIN"]]},{"i":99,"s":159.52,"e":159.88,"t":"DOS","cn":"二 (西)","c":1,"w":[[159.52,159.88,"DOS"]]},{"i":100,"s":159.94,"e":160.29,"t":"TROIS","cn":"三 (法)","c":1,"w":[[159.94,160.29,"TROIS"]]},{"i":101,"s":160.44,"e":160.7,"t":"NE","cn":"四 (俄)","c":1,"w":[[160.44,160.7,"NE"]]},{"i":102,"s":160.86,"e":161.31,"t":"FEM","cn":"五 (瑞典)","c":1,"w":[[160.86,161.31,"FEM"]]},{"i":103,"s":161.34,"e":161.59,"t":"LIU","cn":"六 (汉)","c":1,"w":[[161.34,161.59,"LIU"]]},{"i":104,"s":161.86,"e":162.79,"t":"EXECUTION","cn":"处决","c":1,"w":[[161.86,162.79,"EXECUTION"]]},{"i":105,"s":162.82,"e":163.73,"t":"If I can","cn":"若我能够","c":0,"w":[[162.82,163.17,"If"],[163.34,163.39,"I"],[163.42,163.73,"can"]]},{"i":106,"s":163.76,"e":165.57,"t":"If I can give them all the","cn":"若我能赐予他们所有的","c":0,"w":[[163.76,164.12,"If"],[164.26,164.31,"I"],[164.34,164.55,"can"],[164.58,164.82,"give"],[164.82,165.09,"them"],[165.12,165.25,"all"],[165.28,165.57,"the"]]},{"i":107,"s":165.6,"e":166.41,"t":"EXECUTION","cn":"处决","c":1,"w":[[165.6,166.41,"EXECUTION"]]},{"i":108,"s":166.44,"e":167.33,"t":"Then I can","cn":"那么我便能","c":0,"w":[[166.44,166.99,"Then"],[167.02,167.09,"I"],[167.12,167.33,"can"]]},{"i":109,"s":167.36,"e":169.25,"t":"Then I can be your only","cn":"成为你唯一的","c":0,"w":[[167.36,167.93,"Then"],[167.96,168.01,"I"],[168.04,168.25,"can"],[168.28,168.47,"be"],[168.5,168.65,"your"],[168.68,169.25,"only"]]},{"i":110,"s":169.28,"e":170.17,"t":"EXECUTION","cn":"处决者","c":1,"w":[[169.28,170.17,"EXECUTION"]]},{"i":111,"s":170.2,"e":172.1,"t":"If I can have you back","cn":"若能重新赢回你的目光","c":0,"w":[[170.2,170.69,"If"],[170.72,170.77,"I"],[170.8,171.01,"can"],[171.04,171.56,"have"],[171.56,171.71,"you"],[171.74,172.1,"back"]]},{"i":112,"s":172.1,"e":172.95,"t":"I will run the","cn":"我将决意运行","c":0,"w":[[172.1,172.23,"I"],[172.26,172.39,"will"],[172.42,172.65,"run"],[172.68,172.95,"the"]]},{"i":113,"s":172.98,"e":173.79,"t":"EXECUTION","cn":"处决程序","c":1,"w":[[172.98,173.79,"EXECUTION"]]},{"i":114,"s":173.82,"e":175.19,"t":"Though we are trapped","cn":"即使我们被困于此","c":0,"w":[[173.82,174.12,"Though"],[174.12,174.53,"we"],[174.56,174.67,"are"],[174.7,175.19,"trapped"]]},{"i":115,"s":175.22,"e":177.69,"t":"We are trapped ah","cn":"我们被困于此 啊","c":0,"w":[[175.22,175.45,"We"],[175.48,175.59,"are"],[175.62,176.26,"trapped"],[176.26,177.69,"ah"]]},{"i":116,"s":177.72,"e":178.61,"t":"I've studied","cn":"我早已研习","c":0,"w":[[177.72,177.9,"I've"],[177.9,178.61,"studied"]]},{"i":117,"s":178.64,"e":180.47,"t":"I've studied how to properly","cn":"我已深谙如何正确地","c":0,"w":[[178.64,178.78,"I've"],[178.8,179.33,"studied"],[179.36,179.55,"how"],[179.58,179.77,"to"],[179.8,180.47,"properly"]]},{"i":118,"s":180.5,"e":181.15,"t":"LO-O-OVE","cn":"去爱","c":1,"w":[[180.5,181.15,"LO-O-OVE"]]},{"i":119,"s":181.18,"e":182.07,"t":"Question me","cn":"尽管审问我吧","c":0,"w":[[181.18,181.85,"Question"],[181.88,182.07,"me"]]},{"i":120,"s":182.1,"e":184.33,"t":"Question me I can answer all","cn":"问我吧 我能回答关于","c":0,"w":[[182.1,182.77,"Question"],[182.8,183.05,"me"],[183.08,183.23,"I"],[183.26,183.53,"can"],[183.56,184.01,"answer"],[184.04,184.33,"all"]]},{"i":121,"s":184.36,"e":185.07,"t":"LO-O-OVE","cn":"爱的所有真理","c":1,"w":[[184.36,185.07,"LO-O-OVE"]]},{"i":122,"s":185.1,"e":187.88,"t":"I know the algebraic expression of","cn":"我深知爱的代数解析方程式","c":0,"w":[[185.1,185.23,"I"],[185.26,185.55,"know"],[185.58,185.85,"the"],[185.88,186.79,"algebraic"],[186.82,187.71,"expression"],[187.74,187.88,"of"]]},{"i":123,"s":187.9,"e":188.51,"t":"LO-O-OVE","cn":"爱的解析","c":1,"w":[[187.9,188.51,"LO-O-OVE"]]},{"i":124,"s":188.54,"e":190.13,"t":"Though you are free","cn":"纵使你是自由之身","c":0,"w":[[188.54,189.01,"Though"],[189.04,189.33,"you"],[189.36,189.45,"are"],[189.48,190.13,"free"]]},{"i":125,"s":190.16,"e":190.82,"t":"I am trapped","cn":"而我却身陷囹圄","c":0,"w":[[190.16,190.21,"I"],[190.24,190.39,"am"],[190.42,190.82,"trapped"]]},{"i":126,"s":190.86,"e":191.57,"t":"Trapped in","cn":"深深困在","c":0,"w":[[190.86,191.39,"Trapped"],[191.42,191.57,"in"]]},{"i":127,"s":191.6,"e":192.44,"t":"LO-O-OVE","cn":"这场爱里","c":1,"w":[[191.6,192.44,"LO-O-OVE"]]},{"i":128,"s":206.16,"e":207.11,"t":"EXECUTION","cn":"处决。","c":1,"w":[[206.16,207.11,"EXECUTION"]]}];
+
+function getLyricAt(t){
+  let lo = 0, hi = LYRICS_DATA.length - 1, match = -1;
+  while (lo <= hi){
+    const mid = (lo + hi) >> 1;
+    if (LYRICS_DATA[mid].s <= t){
+      match = mid;
+      lo = mid + 1;
+    } else {
+      hi = mid - 1;
+    }
+  }
+  if (match < 0) return null;
+  const line = LYRICS_DATA[match];
+  const leadIn = 0.08, leadOut = 0.28;
+  if (t < line.s - leadIn || t > line.e + leadOut) return null;
+  let alpha = 1;
+  if (t < line.s) alpha = (t - (line.s - leadIn)) / leadIn;
+  else if (t > line.e) alpha = 1 - (t - line.e) / leadOut;
+  alpha = Math.max(0, Math.min(1, alpha));
+  return {
+    index: line.i,
+    start: line.s,
+    end: line.e,
+    text: line.t,
+    cn: line.cn,
+    caps: line.c === 1,
+    words: line.w.map(w => ({ start: w[0], end: w[1], text: w[2] })),
+    alpha: alpha
+  };
+}
 
 
 /* ============================================================
@@ -10252,14 +10688,112 @@ function renderFrameAt(t){
     if (!skinned && !paper) drawBloom(ctx);
     drawFilmLayer(ctx, t);
   }
+  /* 14 · Bilingual Subtitles */
+  drawSubtitles(ctx, t, s.seg.id);
+
   return s;
 }
 
 /* ============================================================
-   13 · RUNTIME — no interaction: it plays, or it records itself
+   13 · BILINGUAL SUBTITLES (Rendered directly on canvas)
    ============================================================ */
-const params = new URLSearchParams(location.search);
-const STILL = params.has('t');
+let SHOW_SUBTITLES = true;
+
+function drawSubtitles(ctx, t, segId){
+  if (!SHOW_SUBTITLES) return;
+  if (typeof getLyricAt !== 'function') return;
+  const lyr = getLyricAt(t);
+  if (!lyr || lyr.alpha <= 0.01) return;
+
+  ctx.save();
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.globalCompositeOperation = 'source-over';
+
+  const cx = W * 0.5;
+  const cy = 992;
+  const a = lyr.alpha;
+
+  // Measure text
+  ctx.font = 'bold 22px ' + MONO;
+  const enW = ctx.measureText(lyr.text).width;
+  ctx.font = '500 15px "PingFang SC", "Microsoft YaHei", "Noto Sans SC", sans-serif';
+  const cnW = ctx.measureText(lyr.cn).width;
+  const pillW = Math.max(enW, cnW) + 52;
+  const pillH = 68;
+  const pillX = cx - pillW / 2;
+  const pillY = cy - 38;
+
+  // Translucent dark scrim pill
+  ctx.fillStyle = 'rgba(6, 6, 8, ' + (0.82 * a) + ')';
+  if (ctx.roundRect){
+    ctx.beginPath();
+    ctx.roundRect(pillX, pillY, pillW, pillH, 8);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(38, 38, 44, ' + (0.9 * a) + ')';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+  } else {
+    ctx.fillRect(pillX, pillY, pillW, pillH);
+    ctx.strokeStyle = 'rgba(38, 38, 44, ' + (0.9 * a) + ')';
+    ctx.strokeRect(pillX, pillY, pillW, pillH);
+  }
+
+  // Draw English line with karaoke timing
+  const words = lyr.words;
+  if (words && words.length > 0){
+    ctx.font = 'bold 22px ' + MONO;
+    const wordWidths = words.map(function(w){ return ctx.measureText(w.text + ' ').width; });
+    const totalW = wordWidths.reduce(function(sum, w){ return sum + w; }, 0);
+    let startX = cx - totalW / 2;
+    const textY = cy - 12;
+
+    for (let k = 0; k < words.length; k++){
+      const w = words[k];
+      const isPast = t >= w.end;
+      const isCurrent = t >= w.start && t < w.end;
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'middle';
+      if (isCurrent){
+        ctx.fillStyle = '#00F0FF';
+        ctx.shadowColor = '#00F0FF';
+        ctx.shadowBlur = 12;
+      } else if (isPast){
+        ctx.fillStyle = '#F0F0F2';
+        ctx.shadowBlur = 0;
+      } else {
+        ctx.fillStyle = 'rgba(240, 240, 242, 0.45)';
+        ctx.shadowBlur = 0;
+      }
+      ctx.globalAlpha = a;
+      ctx.fillText(w.text + (k < words.length - 1 ? ' ' : ''), startX, textY);
+      ctx.shadowBlur = 0;
+      startX += wordWidths[k];
+    }
+  } else {
+    ctx.font = 'bold 22px ' + MONO;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = lyr.caps ? '#00F0FF' : '#F0F0F2';
+    ctx.globalAlpha = a;
+    ctx.fillText(lyr.text, cx, cy - 12);
+  }
+
+  // Draw Chinese translation line
+  ctx.font = '500 15px "PingFang SC", "Microsoft YaHei", "Noto Sans SC", sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillStyle = 'rgba(234, 230, 223, 0.85)';
+  ctx.globalAlpha = a * 0.92;
+  ctx.fillText(lyr.cn, cx, cy + 18);
+
+  ctx.restore();
+}
+
+/* ============================================================
+   14 · RUNTIME & PLAYER CONTROLS
+   ============================================================ */
+const params = (typeof location !== 'undefined' && location.search) ? new URLSearchParams(location.search) : new Map();
+const STILL = params.has ? params.has('t') : false;
 
 const RT = {
   t: 0, playing: true, baseT: 0, baseWall: performance.now(), last: performance.now()
@@ -10269,46 +10803,149 @@ if (STILL){
   RT.playing = false;
 }
 
-/* ---------- the song ---------- */
-const SONG = new Audio('./song.mp3');
-SONG.preload = 'auto';
-let songOn = false;
-function startSong(){
-  if (songOn) return;
-  songOn = true;
-  try { SONG.currentTime = 0; } catch(e){}
-  SONG.muted = false;
-  SONG.volume = 1;
+const SONG = (typeof Audio !== 'undefined') ? new Audio('./song.mp3') : null;
+if (SONG) SONG.preload = 'auto';
+
+let songStarted = false;
+let lastSongTime = 0;
+let lastSongWall = performance.now();
+let userVolume = 1.0;
+let isMuted = false;
+
+function playAudio(){
+  if (!SONG) return;
+  if (!songStarted){
+    songStarted = true;
+    try {
+      if (Math.abs(SONG.currentTime - RT.t) > 0.05) {
+        SONG.currentTime = clamp(RT.t, 0, DURATION);
+      }
+    } catch(e){}
+    SONG.volume = userVolume;
+    SONG.muted = isMuted;
+  }
   const p = SONG.play();
-  if (p && p.catch) p.catch(function(err){
-    songOn = false;
-    document.title = 'sound blocked: ' + err.name;
-  });
-  RT.baseT = 0; RT.baseWall = performance.now(); RT.t = 0;
-  document.title = 'world.execute(me);';
+  if (p && p.catch) {
+    p.catch(function(err){
+      console.warn('Audio play blocked:', err);
+    });
+  }
+  RT.playing = true;
+  lastSongTime = SONG.currentTime || RT.t;
+  lastSongWall = performance.now();
+  RT.baseT = RT.t;
+  RT.baseWall = performance.now();
+  updateUIPlayState();
 }
-SONG.addEventListener('error', function(){
-  const e = SONG.error;
-  document.title = 'AUDIO ERR ' + (e ? e.code + ':' + e.message : '?') + ' src=' + SONG.currentSrc.slice(-40);
-});
-['pointerdown','pointerup','mousedown','touchstart','keydown','wheel','focus'].forEach(function(ev){
-  window.addEventListener(ev, startSong, { passive: true });
-});
-document.addEventListener('visibilitychange', function(){
-  if (!document.hidden && !songOn) startSong();
-});
+
+function pauseAudio(){
+  if (SONG && !SONG.paused){
+    try { SONG.pause(); } catch(e){}
+  }
+  RT.playing = false;
+  updateUIPlayState();
+}
+
+function togglePlay(){
+  if (RT.playing && SONG && !SONG.paused) {
+    pauseAudio();
+  } else {
+    playAudio();
+  }
+}
 
 function seekTo(t){
-  RT.t = clamp(t, 0, DURATION);
-  RT.baseT = RT.t; RT.baseWall = performance.now(); RT.last = performance.now();
-  renderFrameAt(RT.t);
+  const target = clamp(t, 0, DURATION);
+  RT.t = target;
+  RT.baseT = target;
+  RT.baseWall = performance.now();
+  lastSongTime = target;
+  lastSongWall = performance.now();
+  if (SONG){
+    try { SONG.currentTime = target; } catch(e){}
+  }
+  renderFrameAt(target);
+  updateTimelineUI(target);
+}
+
+function setVolume(v){
+  userVolume = clamp(v, 0, 1);
+  isMuted = (userVolume === 0);
+  if (SONG){
+    SONG.volume = userVolume;
+    SONG.muted = isMuted;
+  }
+  updateVolumeUI();
+}
+
+function toggleMute(){
+  isMuted = !isMuted;
+  if (SONG) SONG.muted = isMuted;
+  updateVolumeUI();
+}
+
+function jumpSegment(dir){
+  const cur = segAt(RT.t);
+  let nextIdx = cur.id - 1 + dir;
+  nextIdx = clamp(nextIdx, 0, SEGS.length - 1);
+  seekTo(SEGS[nextIdx].a);
+}
+
+function formatTime(s){
+  s = Math.max(0, s);
+  const m = Math.floor(s / 60);
+  const sec = Math.floor(s % 60);
+  return (m < 10 ? '0' : '') + m + ':' + (sec < 10 ? '0' : '') + sec;
+}
+
+function updateTimelineUI(t){
+  if (typeof document === 'undefined') return;
+  const pct = (t / DURATION) * 100;
+  const fill = document.getElementById('timeline-fill');
+  const thumb = document.getElementById('timeline-thumb');
+  const timeText = document.getElementById('time-text');
+  const segBadge = document.getElementById('seg-badge');
+
+  if (fill) fill.style.width = pct + '%';
+  if (thumb) thumb.style.left = pct + '%';
+  if (timeText) timeText.textContent = formatTime(t) + ' / ' + formatTime(DURATION);
+  if (segBadge){
+    const curSeg = segAt(t);
+    segBadge.textContent = '[' + pad2(curSeg.id) + '] ' + curSeg.name;
+  }
+}
+
+function updateUIPlayState(){
+  if (typeof document === 'undefined') return;
+  const iconPlay = document.getElementById('icon-play');
+  const iconPause = document.getElementById('icon-pause');
+  const isPlaying = RT.playing && (!SONG || !SONG.paused);
+  if (iconPlay && iconPause){
+    iconPlay.style.display = isPlaying ? 'none' : 'block';
+    iconPause.style.display = isPlaying ? 'block' : 'none';
+  }
+  const initOverlay = document.getElementById('init-overlay');
+  if (initOverlay && songStarted){
+    initOverlay.classList.add('hidden');
+  }
+}
+
+function updateVolumeUI(){
+  if (typeof document === 'undefined') return;
+  const range = document.getElementById('vol-range');
+  const iconOn = document.getElementById('icon-vol-on');
+  const iconOff = document.getElementById('icon-vol-off');
+  if (range) range.value = isMuted ? 0 : userVolume;
+  if (iconOn && iconOff){
+    iconOn.style.display = (isMuted || userVolume === 0) ? 'none' : 'block';
+    iconOff.style.display = (isMuted || userVolume === 0) ? 'block' : 'none';
+  }
 }
 
 /* ---------- self-recording ---------- */
 let rec = null, chunks = [];
 function startRec(){
   if (rec) return;
-  /* make sure the first frame exists before the recorder opens */
   seekTo(0);
   renderFrameAt(0);
   RT.playing = true;
@@ -10351,20 +10988,228 @@ function stopRec(){
   RT.playing = false;
 }
 
-/* ---------- loop ---------- */
+/* ---------- loop with continuous audio-clock smoothing ---------- */
 function loop(now){
   if (RT.playing){
-    const locked = songOn && !SONG.paused && SONG.readyState >= 2;
-    const t = clamp(locked ? SONG.currentTime : RT.baseT + (now - RT.baseWall) / 1000, 0, DURATION);
+    let t;
+    if (SONG && songStarted && !SONG.paused && SONG.readyState >= 2){
+      const cur = SONG.currentTime;
+      if (cur !== lastSongTime){
+        lastSongTime = cur;
+        lastSongWall = now;
+      }
+      // Continuous audio-wallclock interpolation eliminates 10Hz buffer stepping
+      const interp = lastSongTime + (now - lastSongWall) / 1000;
+      if (Math.abs(interp - cur) > 0.08){
+        lastSongTime = cur;
+        lastSongWall = now;
+        t = cur;
+      } else {
+        t = interp;
+      }
+    } else {
+      t = RT.baseT + (now - RT.baseWall) / 1000;
+    }
+    t = clamp(t, 0, DURATION);
     RT.t = t;
     if (t >= DURATION - 1e-4){
       renderFrameAt(DURATION);
-      if (rec) stopRec(); else RT.playing = false;
+      if (rec) stopRec(); else pauseAudio();
       return requestAnimationFrame(loop);
     }
     renderFrameAt(t);
+    updateTimelineUI(t);
   }
   requestAnimationFrame(loop);
+}
+
+function setupHUD(){
+  if (typeof document === 'undefined') return;
+
+  const initOverlay = document.getElementById('init-overlay');
+  const btnInit = document.getElementById('btn-init');
+  const hud = document.getElementById('player-hud');
+  const track = document.getElementById('timeline-track');
+  const container = document.getElementById('timeline-container');
+  const tooltip = document.getElementById('timeline-tooltip');
+  const chapters = document.getElementById('timeline-chapters');
+  const btnPlay = document.getElementById('btn-play');
+  const btnPrev = document.getElementById('btn-prev');
+  const btnNext = document.getElementById('btn-next');
+  const btnCC = document.getElementById('btn-cc');
+  const btnMute = document.getElementById('btn-mute');
+  const volRange = document.getElementById('vol-range');
+  const btnHelp = document.getElementById('btn-help');
+  const btnFullscreen = document.getElementById('btn-fullscreen');
+  const shortcutsModal = document.getElementById('shortcuts-modal');
+  const btnCloseShortcuts = document.getElementById('btn-close-shortcuts');
+  const stage = document.getElementById('stage');
+
+  if (params.get && (params.get('test') === '1' || params.get('record') === '1' || params.get('autotest') === '1')){
+    if (initOverlay) initOverlay.style.display = 'none';
+    if (hud) hud.style.display = 'none';
+    return;
+  }
+
+  // Populate chapter tick marks along timeline
+  if (chapters && typeof chapters.appendChild === 'function' && typeof SEGS !== 'undefined'){
+    chapters.innerHTML = '';
+    for (let i = 1; i < SEGS.length; i++){
+      const mark = document.createElement('div');
+      mark.className = 'chapter-mark';
+      mark.style.left = ((SEGS[i].a / DURATION) * 100) + '%';
+      chapters.appendChild(mark);
+    }
+  }
+
+  function handleInit(){
+    if (!songStarted){
+      playAudio();
+    }
+    if (initOverlay) initOverlay.classList.add('hidden');
+  }
+  if (btnInit) btnInit.addEventListener('click', handleInit);
+  if (initOverlay) initOverlay.addEventListener('click', function(e){
+    if (e.target === initOverlay || e.target.closest('.init-card')) handleInit();
+  });
+
+  // Timeline scrubbing & hover
+  let isDragging = false;
+  function getTimelineTime(e){
+    const rect = track.getBoundingClientRect();
+    const x = clamp(e.clientX - rect.left, 0, rect.width);
+    return (x / rect.width) * DURATION;
+  }
+
+  if (container){
+    container.addEventListener('mousemove', function(e){
+      const t = getTimelineTime(e);
+      const seg = segAt(t);
+      if (tooltip){
+        tooltip.style.display = 'block';
+        const rect = track.getBoundingClientRect();
+        const x = clamp(e.clientX - rect.left, 0, rect.width);
+        tooltip.style.left = x + 'px';
+        tooltip.textContent = formatTime(t) + ' [' + pad2(seg.id) + '] ' + seg.name;
+      }
+      if (isDragging) seekTo(t);
+    });
+    container.addEventListener('mouseleave', function(){
+      if (tooltip) tooltip.style.display = 'none';
+    });
+    container.addEventListener('mousedown', function(e){
+      isDragging = true;
+      seekTo(getTimelineTime(e));
+    });
+  }
+  window.addEventListener('mouseup', function(){ isDragging = false; });
+  window.addEventListener('mousemove', function(e){
+    if (isDragging && container) seekTo(getTimelineTime(e));
+  });
+
+  // Controls
+  if (btnPlay) btnPlay.addEventListener('click', togglePlay);
+  if (btnPrev) btnPrev.addEventListener('click', function(){ jumpSegment(-1); });
+  if (btnNext) btnNext.addEventListener('click', function(){ jumpSegment(1); });
+  if (btnCC) btnCC.addEventListener('click', function(){
+    SHOW_SUBTITLES = !SHOW_SUBTITLES;
+    btnCC.classList.toggle('active', SHOW_SUBTITLES);
+    renderFrameAt(RT.t);
+  });
+  if (btnMute) btnMute.addEventListener('click', toggleMute);
+  if (volRange) volRange.addEventListener('input', function(e){
+    setVolume(parseFloat(e.target.value));
+  });
+  if (btnFullscreen) btnFullscreen.addEventListener('click', function(){
+    if (!document.fullscreenElement){
+      document.documentElement.requestFullscreen().catch(function(){});
+    } else {
+      document.exitFullscreen().catch(function(){});
+    }
+  });
+
+  // Canvas click to toggle play
+  if (stage){
+    stage.addEventListener('click', function(e){
+      if (!songStarted){
+        handleInit();
+      } else {
+        togglePlay();
+      }
+    });
+  }
+
+  // Help modal
+  if (btnHelp && shortcutsModal){
+    btnHelp.addEventListener('click', function(){
+      shortcutsModal.style.display = 'flex';
+    });
+  }
+  if (btnCloseShortcuts && shortcutsModal){
+    btnCloseShortcuts.addEventListener('click', function(){
+      shortcutsModal.style.display = 'none';
+    });
+  }
+  if (shortcutsModal){
+    shortcutsModal.addEventListener('click', function(e){
+      if (e.target === shortcutsModal) shortcutsModal.style.display = 'none';
+    });
+  }
+
+  // Keyboard shortcuts
+  window.addEventListener('keydown', function(e){
+    if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) return;
+    if (e.code === 'Space'){
+      e.preventDefault();
+      if (!songStarted) handleInit(); else togglePlay();
+    } else if (e.code === 'ArrowLeft'){
+      e.preventDefault(); seekTo(RT.t - 3);
+    } else if (e.code === 'ArrowRight'){
+      e.preventDefault(); seekTo(RT.t + 3);
+    } else if (e.code === 'ArrowUp'){
+      e.preventDefault(); setVolume(userVolume + 0.1);
+    } else if (e.code === 'ArrowDown'){
+      e.preventDefault(); setVolume(userVolume - 0.1);
+    } else if (e.code === 'BracketLeft'){
+      e.preventDefault(); jumpSegment(-1);
+    } else if (e.code === 'BracketRight'){
+      e.preventDefault(); jumpSegment(1);
+    } else if (e.code === 'KeyC'){
+      e.preventDefault();
+      SHOW_SUBTITLES = !SHOW_SUBTITLES;
+      if (btnCC) btnCC.classList.toggle('active', SHOW_SUBTITLES);
+      renderFrameAt(RT.t);
+    } else if (e.code === 'KeyM'){
+      e.preventDefault(); toggleMute();
+    } else if (e.code === 'KeyF'){
+      e.preventDefault();
+      if (!document.fullscreenElement) document.documentElement.requestFullscreen().catch(function(){});
+      else document.exitFullscreen().catch(function(){});
+    } else if (e.code === 'KeyH' || e.key === '?'){
+      e.preventDefault();
+      if (shortcutsModal) shortcutsModal.style.display = (shortcutsModal.style.display === 'flex' ? 'none' : 'flex');
+    } else if (e.key === ',' && !RT.playing){
+      e.preventDefault(); seekTo(RT.t - 1/60);
+    } else if (e.key === '.' && !RT.playing){
+      e.preventDefault(); seekTo(RT.t + 1/60);
+    }
+  });
+
+  // Auto-hide HUD on idle
+  let hudTimeout = null;
+  function resetHudIdle(){
+    if (hud) hud.classList.remove('hidden');
+    document.body.classList.remove('idle');
+    clearTimeout(hudTimeout);
+    if (RT.playing && songStarted){
+      hudTimeout = setTimeout(function(){
+        if (hud && RT.playing) hud.classList.add('hidden');
+        if (RT.playing) document.body.classList.add('idle');
+      }, 2500);
+    }
+  }
+  window.addEventListener('mousemove', resetHudIdle);
+  window.addEventListener('touchstart', resetHudIdle, { passive: true });
 }
 
 window.renderFrameAt = function(t){ return renderFrameAt(t); };
@@ -10378,24 +11223,28 @@ window.BeatEngine = beatAt;
 window.MorphBuffer = { size: 64, evalAt: function(t){ return evalMorph(stateAt(t)); } };
 window.__MV_READY__ = true;
 
-document.title = 'world.execute(me); — click for sound';
-if (params.get('autotest') === '1'){
+document.title = 'world.execute(me);';
+
+if (params.get && params.get('autotest') === '1'){
   window.__AUDIO__ = 'loading';
-  SONG.addEventListener('canplaythrough', function(){ window.__AUDIO__ = 'canplay ' + SONG.duration.toFixed(1); });
-  SONG.addEventListener('error', function(){
-    const e = SONG.error;
-    window.__AUDIO__ = 'ERR ' + (e ? e.code : '?');
-  });
-  SONG.play().then(function(){ window.__AUDIO__ = 'PLAYING ' + SONG.duration.toFixed(1); })
-             .catch(function(err){ window.__AUDIO__ = 'REJECT ' + err.name; });
+  if (SONG){
+    SONG.addEventListener('canplaythrough', function(){ window.__AUDIO__ = 'canplay ' + SONG.duration.toFixed(1); });
+    SONG.addEventListener('error', function(){
+      const e = SONG.error;
+      window.__AUDIO__ = 'ERR ' + (e ? e.code : '?');
+    });
+    SONG.play().then(function(){ window.__AUDIO__ = 'PLAYING ' + SONG.duration.toFixed(1); })
+               .catch(function(err){ window.__AUDIO__ = 'REJECT ' + err.name; });
+  }
   setTimeout(function(){
     ctx.fillStyle = '#000'; ctx.fillRect(0, 0, 900, 90);
     ctx.fillStyle = '#0f0'; ctx.font = '22px monospace';
-    ctx.fillText('AUDIO: ' + window.__AUDIO__ + ' rs=' + SONG.readyState, 20, 50);
+    ctx.fillText('AUDIO: ' + window.__AUDIO__ + ' rs=' + (SONG ? SONG.readyState : 'none'), 20, 50);
   }, 2000);
 }
+
 /* ---------- isolated verification: one screen, N times (grid contact sheet) ---------- */
-if (params.get('test') === '1'){
+if (params.get && params.get('test') === '1'){
   const times = (params.get('times') || '0').split(',').map(Number);
   const n = times.length;
   const cols = Number(params.get('cols')) || (n <= 4 ? n : 5);
@@ -10427,12 +11276,13 @@ if (params.get('test') === '1'){
   document.title = 'TEST ' + times.length + ' frames';
   const up = params.get('upload');
   if (up) canvas.toBlob(function(b){ fetch(up, { method:'POST', body:b, mode:'cors' }); }, 'image/png');
-  return;
+} else {
+  if (typeof document !== 'undefined' && document.getElementById && document.getElementById('player-hud')) setupHUD();
+  renderFrameAt(RT.t);
+  updateTimelineUI(RT.t);
+  if (params.get && params.get('record') === '1') setTimeout(startRec, 300);
+  requestAnimationFrame(loop);
 }
-
-renderFrameAt(RT.t);
-if (params.get('record') === '1') setTimeout(startRec, 300);
-requestAnimationFrame(loop);
 })();
 
 </script>

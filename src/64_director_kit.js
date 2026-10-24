@@ -517,6 +517,10 @@ const SEG_KEYWORDS = {
 
 function drawKineticKeywordStamp(c, word, age, opts){
   opts = opts || {};
+  if (typeof AI_VISION !== 'undefined' && AI_VISION.drawTokenCondensation){
+    AI_VISION.drawTokenCondensation(c, word, age, opts);
+    return;
+  }
   const maxAge = opts.maxAge || 1.6;
   if (age < 0 || age > maxAge) return;
   const enter = EASE.out(clamp(age / 0.14, 0, 1));

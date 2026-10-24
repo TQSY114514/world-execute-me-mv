@@ -231,6 +231,11 @@ function world10_v4(c, s){
   /* Base execution plate from 47_plates.js */
   plateExecution(c, t, red);
 
+  /* AI Vision: Compute Graph Tear & CUDA NaN/OOM Catastrophe */
+  if (typeof AI_VISION !== 'undefined' && AI_VISION.drawTensorCatastrophe){
+    AI_VISION.drawTensorCatastrophe(c, t, 0.75 + 0.25 * b.kick);
+  }
+
   /* Overlay the monumental Semicolon Guillotine & difference silhouette from 60_proto.js */
   const ink = red ? C.bg : C.red;
   giantSemicolon(c, W*0.5 + (idx%2 ? -18 : 18), H*0.52, 680 + 40 * b.kick, ink, 0.88);

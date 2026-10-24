@@ -13,6 +13,8 @@ shots/*.png
 shots/*.html
 *.webm
 *.mp4
+*.h264
+tools/*.h264
 
 # build artefacts
 node_modules/

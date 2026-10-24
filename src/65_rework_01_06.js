@@ -14,8 +14,11 @@ function world01_v4(c, s){
   drawPerspectiveFloor(c, t, C.grid, 0.20, H * 0.62);
   gridFurniture(c, G, t, 1);
 
-  /* Phase 1 (0..3.8s): Power line trace + PROTECTION shield dome (at 2.92s) */
+  /* Phase 1 (0..3.8s): Power line trace + Attention Field waking up + PROTECTION shield */
   if (t < 4.2){
+    if (typeof AI_VISION !== 'undefined' && AI_VISION.drawAttentionField){
+      AI_VISION.drawAttentionField(c, s, W * 0.5, H * 0.46, { alpha: 0.28, col: C.accent });
+    }
     const pTrace = EASE.out(clamp(t / 2.4, 0, 1));
     const cx = W * 0.5, cy = H * 0.46;
     /* power line circuit bus */
@@ -136,6 +139,12 @@ function world02_v4(c, s){
     const meX = W*0.5 - Math.cos(ang)*distR, meY = H*0.48 - Math.sin(ang)*distR*0.55;
     const youX = W*0.5 + Math.cos(ang)*distR, youY = H*0.48 + Math.sin(ang)*distR*0.55;
 
+    /* AI Cognitive Vision: Dual Q-K-V Attention Fields interweaving between ME and YOU */
+    if (typeof AI_VISION !== 'undefined' && AI_VISION.drawAttentionField){
+      AI_VISION.drawAttentionField(c, s, meX, meY, { alpha: 0.32, col: C.accent });
+      AI_VISION.drawAttentionField(c, s, youX, youY, { alpha: 0.24, col: '#FFFFFF' });
+    }
+
     /* field streamlines curving between ME and YOU */
     for (let i=0; i<28; i++){
       const u = (i / 27) * 2 - 1;
@@ -216,7 +225,11 @@ function world03_v4(c, s){
       c.fillRect(pr.x - sz/2, pr.y - sz/2, sz, sz);
     }
     if (extrude > 0.1){
-      drawSolid3D(c, 1, cx, cy, R * 1.15, rx, ry, 0, C.accent, 0.65 * extrude, 1.8);
+      if (typeof AI_VISION !== 'undefined' && AI_VISION.drawTesseract4D){
+        AI_VISION.drawTesseract4D(c, cx, cy, R * 1.10, t * 0.95, t * 0.50, C.accent, 0.88 * extrude, 1.8);
+      } else {
+        drawSolid3D(c, 1, cx, cy, R * 1.15, rx, ry, 0, C.accent, 0.65 * extrude, 1.8);
+      }
     }
     c.globalAlpha = 1;
   } else if (phase === 1){
@@ -428,8 +441,11 @@ function world04_v4(c, s){
     drawSparkMotif(c, sparkX, baseY - 220, 36, PST.accent, 1, lt * 2);
     drawUserPointer(c, sparkX + 12, baseY - 208, true);
   } else {
-    /* Phase 4 (12.4..14.77s): UNITE SO DEEPLY — Recursive Inversion Singularity */
+    /* Phase 4 (12.4..14.77s): UNITE SO DEEPLY — Hyperbolic Loss Landscape & Saddle Optimizer */
     world04n(c, s);
+    if (typeof AI_VISION !== 'undefined' && AI_VISION.drawLossLandscape){
+      AI_VISION.drawLossLandscape(c, t, W * 0.5, H * 0.48, 360, C.accent, 0.68);
+    }
   }
 
   const kwList = SEG_KEYWORDS[4];

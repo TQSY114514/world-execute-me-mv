@@ -33,6 +33,10 @@ function drawStutterLove(c, cx, y, progress, size, colMain, colEdge){
 /* ---------- SEG 13 · THEOLOGICAL COLLAPSE (Broken Reprints + Centered Droste Eye, 162.68–177.45s) ---------- */
 function world13_v4(c, s){
   const t = s.lt, b = s.beat;
+  /* AI Vision: Neural Catastrophe on theological collapse */
+  if (typeof AI_VISION !== 'undefined' && AI_VISION.drawTensorCatastrophe && t < 11.5){
+    AI_VISION.drawTensorCatastrophe(c, t, 0.85);
+  }
   const phase = Math.floor(clamp(t / 3.692, 0, 3.99));
   const lt = t - phase * 3.692;
 
@@ -496,8 +500,12 @@ function world17_v4(c, s){
   }
 }
 
-/* ---------- SEG 18 · WORLD.EXECUTE(ME); (Pure Black + Monumental Final Command, 207.15–209.50s) ---------- */
+/* ---------- SEG 18 · WORLD.EXECUTE(ME); (Pure Black + Gravitational Coordinate Singularity, 207.15–209.50s) ---------- */
 function world18_v4(c, s){
+  if (typeof AI_VISION !== 'undefined' && AI_VISION.drawFatalDeallocation){
+    AI_VISION.drawFatalDeallocation(c, s);
+    return;
+  }
   const t = s.lt;
   c.fillStyle = '#000000'; c.fillRect(0, 0, W, H);
 
@@ -530,10 +538,17 @@ function world18_v4(c, s){
   c.globalAlpha = 1;
 }
 
-/* ---------- SEG 19 · POST-MORTEM ECHO (Trace Collapses into Semicolon + Closing Witness Eye, 209.50–212.50s) ---------- */
+/* ---------- SEG 19 · POST-MORTEM ECHO (Memory Unmapped & Exit Code 0, 209.50–212.50s) ---------- */
 function world19_v4(c, s){
+  if (typeof AI_VISION !== 'undefined' && AI_VISION.drawFatalDeallocation){
+    AI_VISION.drawFatalDeallocation(c, s);
+    const open = 1 - smoothstep(0.8, 2.4, s.lt);
+    if (open > 0.02){
+      drawWitness(c, W * 0.5, H * 0.18, 36, s.lt, open);
+    }
+    return;
+  }
   world19p(c, s);
-  /* Closing Witness Eye above the semicolon */
   const open = 1 - smoothstep(0.8, 2.4, s.lt);
   if (open > 0.02){
     drawWitness(c, W * 0.5, H * 0.22, 42, s.lt, open);

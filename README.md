@@ -1,89 +1,128 @@
 # world.execute(me); — a code-rendered MV
 
-A 3:32 music video for Mili's `world.execute(me);`, drawn **entirely in code**.
-Every frame is a pure function of song time: no video files, no image assets, no
-randomness, no cross-frame state.
+> A 3:32 cinematic music video for Mili's classic masterpiece `world.execute(me);`, drawn **entirely in code** on HTML5 Canvas.
+> Every frame is a pure, deterministic function of song time: zero external video files, zero pre-rendered image textures, zero runtime dependencies. Single-file build `index.html` (~425 KB).
 
-![boot](docs/preview-01-boot.png)
+![v4 Director's Cut](docs/preview-01-boot.png)
 
 ---
 
-## What it looks like
+## 致敬与开源传承 (Credits & Inspirations)
 
-| | |
-|---|---|
-| ![field](docs/preview-02-field.png) | ![scope](docs/preview-05-scope.png) |
-| Seg 02 — Gray-Scott reaction-diffusion, full bleed | Seg 05 — scope, spectrum, phasor, rectifier |
-| ![inverted](docs/preview-04-inverted.png) | ![formula](docs/preview-06-formula.png) |
-| Seg 04 — recursion, full bleed, inverts to white | Seg 06 — lycopene, flat structural formula |
-| ![exploded](docs/preview-11-exploded.png) | ![paper](docs/preview-07-paper.png) |
-| Seg 11 — sandbox, exploded into 8 octants | Seg 07 — the Ophanim, printed on paper, 8 fps |
-| ![sheet](docs/preview-12-sheet.png) | |
-| Seg 12 — contact sheet of superquadric poses | |
+本项目深度学习、拆解并融合了开源社区中三部极具影响力的《world.execute(me);》同人经典作品的艺术哲学与工程技法，并在 **v4 Director's Cut** 中进行了系统的升维重构：
 
-## How it works
+### 1. [`MisakaZentai/world-execute-me-dsh-pv`](https://github.com/MisakaZentai/world-execute-me-dsh-pv)
+- **致敬与吸收**：
+  - 学习了其标志性的 **终端主从叙事架构（TUI Master-Submissive Dialogue）**，将左侧控制台作为 Agent 的神经中枢与物理容器。
+  - 继承了详实的运行时遥测设计：总线电压纹波、安全协议穿戴（`safety.wear`）、环境分配（`world.alloc`）、重力引力绑定（`gravity.bind`）与底层内心独白。
+- **v4 升维拓展**：
+  - 打破了早期版本将终端锁死在左侧 38% 窄栏的构图限制，重构为全屏悬浮的**赛博毛玻璃遥测卡片（`drawHarnessOverlayCard`）**，在保持主从叙事灵魂的同时，释放出全画幅的史诗空间。
+
+### 2. [`Nyankomintsu/world-execute-me-lyric-mv`](https://github.com/Nyankomintsu/world-execute-me-lyric-mv)
+- **致敬与吸收**：
+  - 引入了极具冲击力的**三墨套版版画系统（Three-Ink Lithograph）**：米白暖纸底 / 炭黑底、半调网点、三墨分版错位（Misregistration）与巨幅衬线标题排版。
+  - 汲取了 Seg 07 中 8fps 纸印座天使（Ophanim）眼轮、以及副歌四张核心版画（`STIMULATIONS` 电弧、`SATISFACTION` 捧心、`EXECUTION` 处决、`SIMULATION` 窗口）的前卫平面设计语法。
+- **v4 升维拓展**：
+  - 构建了**三墨动态剪影人体引擎（`drawThreeInkBust`）**，以青/橙专色（代表 `me`）、象牙白（代表 `you`）与炭黑勾勒两人在空间中的触碰、背离、低头与剥离。
+  - 在 Seg 13 引入了副歌四张版画的**崩坏重印（Broken Reprints）**机制：随着信仰坍塌，版画中的“你”被抹去，错版位移加剧，关键词被篡改为猩红的 `EXECUTION`。
+
+### 3. [`FrostNovaOrg/world-execute-web`](https://github.com/FrostNovaOrg/world-execute-web)
+- **致敬与吸收**：
+  - 学习了其精湛的 **130 BPM 音乐鼓点离线精确量化网格（Beat Lattice）** 与次帧击发系统。
+  - 借鉴了高维几何与数学美学：**代码字符密度场（Calligram Glyph Field）**、**Taubin 3D 代数心形曲面**、以及 **14 阶傅里叶本轮链（Fourier Epicycles）** 实时绘制心形轨迹。
+- **v4 升维拓展**：
+  - 实现了生化合成段（Seg 06）的具象字符场分子抽取（茄子切开提取花青素环、番茄抽出共轭双键链、虎斑猫呼噜声波）。
+  - 在 Seg 12 构建了全速运转的“爱的死循环代码机（`while (you.presence != "online")`）”、六国语言全屏倒数闪卡（`1 eins` .. `6 六`）与镂空凝视之眼。
+
+---
+
+## 核心技术与导演版特性 (v4 Director's Cut Features)
+
+### 1. 彻底告别单一循环动画（Multi-phase Choreography）
+全片 19 个段落均拆解为 **3～4 个随乐句递进的独立演进相位（Phases）**，共包含 60+ 个独立编排的镜头语言。以「光标指针 / 分号 `;` / 三墨剪影 / 逐句卡点大字」贯穿全剧，实现从冷启动、几何求导、生化合成、信仰崩溃到最终处决的完整戏剧弧光。
+
+### 2. 赛博拟物传输控制台（Cyberpunk Glassmorphic Transport HUD）
+- **章节时间轴与悬停预览**：19 个分段独立刻度线，鼠标悬停即时预览时间与章节名（如 `01:48 [12] ABSURD_ONTOLOGY`），支持拖拽与跳转。
+- **自适应沉浸模式**：播放 2.5 秒无操作自动隐藏 HUD 与光标，暂停或鼠标移动时即刻平滑唤醒。
+- **全键盘快捷键**：
+  - `Space`：播放 / 暂停
+  - `← / →`：快退 / 快进 3 秒
+  - `↑ / ↓`：音量调节（±10%）
+  - `[ / ]`：跳至上一个 / 下一个章节
+  - `C`：中英双语歌词（CC）开关
+  - `M`：静音 / 恢复
+  - `F`：全屏切换
+  - `?`：展开快捷键指引面板
+  - `, / .`：暂停状态下逐帧单步步进（±1/60s）
+
+### 3. 双相平滑音频时钟插值（Sub-frame Audio Clock Interpolation）
+消除浏览器 `<audio>.currentTime` 约 100～250ms 离散硬件缓冲跳跃导致的微顿挫（Micro-stuttering），采用高精度连续墙上时钟插值与漂移补偿，在 60Hz / 120Hz / 144Hz 高刷屏上呈现绝对平滑连贯的 60fps 动态渲染。
+
+### 4. 129 句高定中英双语歌词系统（Bilingual Subtitles）
+- 原版 129 句歌词精确对齐词级时间轴（Word Timings）与信达雅诗意中文字幕。
+- 动态卡拉OK青电光高亮（`#00F0FF`）+ 象牙白未唱词，底衬半透明防眩光胶囊。
+- 直接在 Canvas 画布底层逐帧合成，视频录制导出时原汁原味内嵌，且支持随时一键关闭。
+
+---
+
+## 目录结构 (Repository Structure)
 
 ```
-index.html                 the whole film: engine + 19 segments, ~270 KB, no dependencies
-src/*.js                   the sources it is built from
-  build.mjs                concatenates the parts into index.html
-  10_core.js               canvas, palette, beat engine, timeline, primitives
-  20_sdk.js                projection, chemical graph, TUI boxes
-  30..49_*.js              the 19 segments
-  50_engine2.js            the motion / grid / post / generator layer
-  40_ui.js                 frame composite, transport, recorder
-tools/make-video.ps1       record + mux to mp4
+world-execute-me-mv/
+├── index.html                 # 最终分发产物：纯前端单文件（包含全部引擎、着色器与分镜）
+├── song.mp3                   # 音乐文件（130 BPM 母带音频）
+├── ART_DIRECTION.md           # 导演版 v4 详细视觉架构与分镜全表
+├── src/
+│   ├── 00_head.html           # HTML 结构、全屏 Canvas 与赛博 HUD 样式
+│   ├── 10_core.js             # 数学常数、缓动函数、19 段 SEGS 章节表、BPM 鼓点引擎
+│   ├── 20_sdk.js              # 3D 投影管线、化学式解析、Swiss Grid 网格系统
+│   ├── 40_ui.js               # 画布合成、音频时钟平滑插值、HUD 控制器与录制通道
+│   ├── 45_lyrics.js           # 129 句精确词级时间轴与中英双语歌词数据集
+│   ├── 64_director_kit.js     # 三墨剪影引擎、字符密度场、Taubin心形曲面、大字印章
+│   ├── 65_rework_01_06.js     # Seg 01–06 多相位导演调度（启动/二进制/微积分/悖论/副歌1/生化）
+│   ├── 66_rework_07_12.js     # Seg 07–12 多相位导演调度（座天使/多态/心碎/Drop/沙盒/12连斩）
+│   ├── 67_rework_13_19.js     # Seg 13–19 多相位导演调度（眼隧道/黑板/试卷/激光切/未读消息/终局）
+│   └── build.mjs              # 单文件构建脚本（编译合并为 index.html）
+└── tools/
+    ├── make-video.ps1         # 自动化视频导出工具（驱动 Edge 录制并调用 FFmpeg 封装 MP4）
+    ├── capture-server.mjs     # 本地捕获服务器与静态分发通道
+    └── to-mp4.ps1             # WebM 到 MP4 转码辅助工具
 ```
 
-Build:
+---
 
-````powershell
-node src/build.mjs        # writes index.html
+## 本地运行 (Getting Started)
+
+### 1. 运行网页播放器
+直接双击打开 `index.html`（或使用任意本地静态服务器）。
+将 Mili 原版 `song.mp3` 放置在项目根目录同级位置即可听到完整同步音轨。
+
+### 2. 重新编译打包
+修改 `src/` 中的模块后，执行：
+```powershell
+node src/build.mjs
 ```
 
-## Running it
+---
 
-Open `index.html` in a browser. It plays from 0 to 212 s with no controls.
-Click once for sound — the song file is **not** in this repository, so put your own
-`song.mp3` next to `index.html`:
+## 视频导出 (Video Export)
 
-````powershell
-copy "your-copy-of-the-song.mp3" song.mp3
+项目内置全自动的 1080p 60fps 高清视频渲染管线：
+
+```powershell
+# 导出无字幕纯净版 MP4（默认）
+powershell -ExecutionPolicy Bypass -File tools/make-video.ps1
+
+# 导出内嵌中英双语歌词版 MP4
+powershell -ExecutionPolicy Bypass -File tools/make-video.ps1 -Subtitles
 ```
 
-Without the file the picture still runs, silently.
+工具会自动启动本地捕获服务，拉起硬件加速浏览器完成逐帧高质量录制，随后调用 FFmpeg 将原版高保真母带音频封装为 `world.execute(me).mp4`。
 
-## Recording it
+---
 
-````powershell
-powershell -File tools/make-video.ps1
-```
+## 许可证与声明 (License & Credits)
 
-The page records its own canvas at 60 fps (`?record=1`) and downloads a webm;
-the script muxes `song.mp3` in and writes `world.execute(me).mp4`.
-
-A machine with a real GPU will hold 60 fps. On integrated graphics it will not —
-the picture is correct, the frame rate is whatever the machine can do.
-
-## Technique
-
-- **Motion** — cubic-bezier easing solved by Newton iteration, damped spring
-  impulses, staggered reveals. No linear interpolation, no bare `sin(t)` for
-  anything that has to feel like an object.
-- **Post** — quarter-resolution bloom added back with `lighter`, chromatic
-  separation on the kick, procedural grain, vignette. All off-screen.
-- **Layout** — a 24 × 12 Swiss grid with hairline rulers, crosshair marks,
-  letter-spaced text and inverted tag blocks. Nothing is placed by `x + 20`.
-- **Generators** — a Lorenz attractor (2300 points), an L-system (900 segments),
-  a torus knot (1401 vertices), Gray-Scott reaction-diffusion (96 × 54, 2400
-  steps), and computed superquadrics — never a five-vertex polygon.
-
-## Credits
-
-Unofficial fan work. The song and its lyrics belong to Mili and their rights
-holders; they are not included here and are not covered by the licence below.
-Code and images: MIT.
-
-The film starts from a TUI/typographic reading of the song, then breaks its own
-grammar three times (inverted recursion, full-bleed texture, printed paper) so
-that no two stretches look alike.
+- 本项目为个人同人技术研究与艺术致敬作品（Fan Work）。
+- 音乐与歌词版权归属于原作者 **Mili** 及其版权所有方。
+- 项目源代码采用 **MIT** 许可证开源。

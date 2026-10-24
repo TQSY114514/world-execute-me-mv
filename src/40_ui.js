@@ -544,7 +544,7 @@ function renderFrameAt(t){
 /* ============================================================
    13 · BILINGUAL SUBTITLES (Rendered directly on canvas)
    ============================================================ */
-let SHOW_SUBTITLES = true;
+let SHOW_SUBTITLES = (typeof location !== 'undefined' && location.search && /(\\?|&)(nosub=1|cc=0|sub=0)/.test(location.search)) ? false : true;
 
 function drawSubtitles(ctx, t, segId){
   if (!SHOW_SUBTITLES) return;
@@ -884,6 +884,7 @@ function setupHUD(){
   const btnPrev = document.getElementById('btn-prev');
   const btnNext = document.getElementById('btn-next');
   const btnCC = document.getElementById('btn-cc');
+  if (btnCC) btnCC.classList.toggle('active', SHOW_SUBTITLES);
   const btnMute = document.getElementById('btn-mute');
   const volRange = document.getElementById('vol-range');
   const btnHelp = document.getElementById('btn-help');

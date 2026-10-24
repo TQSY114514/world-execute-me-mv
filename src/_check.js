@@ -7051,6 +7051,66 @@ function drawChrome(c, s){
 /* ============================================================
    12 · FRAME COMPOSITE — pure function of t
    ============================================================ */
+const SCENE_BUF = document.createElement('canvas');
+SCENE_BUF.width = W; SCENE_BUF.height = H;
+const SBX = SCENE_BUF.getContext('2d');
+
+/* compose one rendered scene into a shot: different layout, same drawing */
+function composeShot(c, kind, seed, bgCol){
+  const h1 = hash2(seed, 11), h2 = hash2(seed, 23), h3 = hash2(seed, 41);
+  c.save();
+  c.fillStyle = bgCol; c.fillRect(0, 0, W, H);
+
+  if (kind === 1){
+    /* macro insert: crop 42% and blow it up */
+    const cw = W*0.42, chh = H*0.42;
+    const sx = clamp(h1*(W-cw), 0, W-cw), sy = clamp(h2*(H-chh), 0, H-chh);
+    c.drawImage(SCENE_BUF, sx, sy, cw, chh, 0, 0, W, H);
+  } else if (kind === 2){
+    /* split: two different crops, hard divider */
+    const cw = W*0.5, chh = H*0.72;
+    const a1 = clamp(h1*(W-cw), 0, W-cw), b1 = clamp(h2*(H-chh), 0, H-chh);
+    const a2 = clamp(h3*(W-cw), 0, W-cw), b2 = clamp(h1*(H-chh), 0, H-chh);
+    c.drawImage(SCENE_BUF, a1, b1, cw, chh, 0, H*0.14, W*0.5, H*0.72);
+    c.drawImage(SCENE_BUF, a2, b2, cw, chh, W*0.5, H*0.14, W*0.5, H*0.72);
+    c.fillStyle = bgCol; c.fillRect(0, 0, W, H*0.14); c.fillRect(0, H*0.86, W, H*0.14);
+    c.strokeStyle = C.bone; c.globalAlpha = 0.5; c.lineWidth = 2;
+    c.beginPath(); c.moveTo(W*0.5, H*0.14); c.lineTo(W*0.5, H*0.86); c.stroke();
+    c.globalAlpha = 1;
+  } else if (kind === 3){
+    /* quad: four crops, one inverted */
+    const qw = W*0.46, qh = H*0.46;
+    const boxes = [[0,0],[W*0.54,0],[0,H*0.54],[W*0.54,H*0.54]];
+    for (let i=0;i<4;i++){
+      const sx = clamp(hash2(seed+i, 7)*(W-qw), 0, W-qw);
+      const sy = clamp(hash2(seed+i, 13)*(H-qh), 0, H-qh);
+      c.save();
+      c.beginPath(); c.rect(boxes[i][0], boxes[i][1], qw, qh); c.clip();
+      c.drawImage(SCENE_BUF, sx, sy, qw, qh, boxes[i][0], boxes[i][1], qw, qh);
+      if (i === 2){
+        c.globalCompositeOperation = 'difference';
+        c.fillStyle = '#FFFFFF';
+        c.fillRect(boxes[i][0], boxes[i][1], qw, qh);
+      }
+      c.restore();
+    }
+  } else if (kind === 4){
+    /* band: a 26% strip blown to full height, letterboxed */
+    const sh = H*0.26;
+    const sy = clamp(h2*(H-sh), 0, H-sh);
+    c.drawImage(SCENE_BUF, 0, sy, W, sh, 0, 0, W, H);
+    c.fillStyle = bgCol;
+    c.fillRect(0, 0, W, H*0.16); c.fillRect(0, H*0.84, W, H*0.16);
+    c.strokeStyle = C.accent; c.globalAlpha = 0.6; c.lineWidth = 2;
+    c.beginPath(); c.moveTo(0, H*0.16); c.lineTo(W, H*0.16);
+    c.moveTo(0, H*0.84); c.lineTo(W, H*0.84); c.stroke();
+    c.globalAlpha = 1;
+  } else {
+    c.drawImage(SCENE_BUF, 0, 0);
+  }
+  c.restore();
+}
+
 function renderFrameAt(t){
   t = clamp(t, 0, DURATION);
   const s = stateAt(t);
@@ -7087,13 +7147,14 @@ function renderFrameAt(t){
            : ((typeof SHOT !== 'undefined' && SHOT[s.seg.id]) || { z: 1 }));
   s.shot = cut ? (cut.line | 0) : 0;
   /* shot grammar: every cut is a different kind of picture, not just a new crop */
-  let kind = 0;
+  let kind = 0, inv = false;
   if (isNew && cut){
     const idx = cut.line | 0;
-    if (cut.emph && (idx % 2 === 0)) kind = 2;
-    else if (idx % 3 === 1) kind = 1;
+    const pat = [1, 0, 2, 4, 0, 3, 1, 2];
+    kind = pat[idx % pat.length];
+    inv = cut.emph && (idx % 3 === 0);
   }
-  s.kind = kind;
+  s.kind = kind; s.inv = inv;
   const mpx = W*0.5 + (hash2(s.shot, 31) - 0.5) * 300;
   const mpy = H*0.5 + (hash2(s.shot, 37) - 0.5) * 220;
   ctx.save();
@@ -7111,9 +7172,22 @@ function renderFrameAt(t){
     ctx.translate(-mpx, -mpy);
   }
   const fn = SCENE_REGISTRY[s.seg.id];
-  if (fn) fn(ctx, s); else worldPlaceholder(ctx, s);
-  if (!bare) drawMorph(ctx, s);
-  ctx.restore();
+  if (isNew){
+    /* draw into the offscreen buffer, then compose this shot */
+    SBX.setTransform(1,0,0,1,0,0);
+    SBX.globalAlpha = 1; SBX.globalCompositeOperation = 'source-over';
+    SBX.fillStyle = C.bg; SBX.fillRect(0, 0, W, H);
+    const mainCtx = ctx;
+    window.__SCENE_CTX__ = SBX;
+    const sc = Object.assign({}, s);
+    fn(SBX, sc);
+    ctx.restore();
+    composeShot(ctx, kind, s.shot, C.bg);
+  } else {
+    if (fn) fn(ctx, s); else worldPlaceholder(ctx, s);
+    if (!bare) drawMorph(ctx, s);
+    ctx.restore();
+  }
 
   if (cut && cut.f && (t - cut.t) < 0.034){
     rect(SPLIT, 0, W - SPLIT, H, C.bone, 0.30);
@@ -7141,9 +7215,9 @@ function renderFrameAt(t){
   if (im) drawImpact(ctx, im);
 
   if (newScene){
-    const inv = (s.seg.id === 4 && s.lt > 6.0) || kind === 2;
-    postProcess(ctx, t, s.beat.kick, { bloom: inv ? 0 : 0.42 });
-    if (kind === 2){
+    const invNow = (s.seg.id === 4 && s.lt > 6.0) || inv;
+    postProcess(ctx, t, s.beat.kick, { bloom: invNow ? 0 : 0.42 });
+    if (invNow){
       ctx.save();
       ctx.globalCompositeOperation = 'difference';
       ctx.fillStyle = '#FFFFFF';

@@ -471,7 +471,7 @@ function renderFrameAt(t){
                 (typeof NEW_SCENE_IDS !== 'undefined' && NEW_SCENE_IDS[s.seg.id]));
 
   const isNew = (typeof NEW_SCENE_IDS !== 'undefined' && NEW_SCENE_IDS[s.seg.id]);
-  const noCompose = (s.seg.id === 1 || s.seg.id === 10 || s.seg.id === 19 || s.seg.id === 9 || s.seg.id === 11);
+  const noCompose = [1,2,3,6,9,10,11,13,14,15,17,19].indexOf(s.seg.id) >= 0;
   /* new scenes get a mild, centre-anchored cut so absolute layout survives */
   const sh = isNew
     ? { z: cut ? clamp(1 + (cut.z - 1) * 0.22, 0.97, 1.09) : 1,
@@ -550,8 +550,10 @@ function renderFrameAt(t){
   if (im) drawImpact(ctx, im);
 
   if (newScene){
+    const posterSeg = ([2,6,9,11,12,17].indexOf(s.seg.id) >= 0);
     const invNow = (s.seg.id === 4 && s.lt > 6.0) || inv;
-    postProcess(ctx, t, s.beat.kick, { bloom: invNow ? 0 : 0.42 });
+    if (posterSeg) postProcess(ctx, t, s.beat.kick, { bloom: 0 });
+    if (!posterSeg) postProcess(ctx, t, s.beat.kick, { bloom: invNow ? 0 : 0.42 });
     if (invNow){
       ctx.save();
       ctx.globalCompositeOperation = 'difference';

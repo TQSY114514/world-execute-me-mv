@@ -1,0 +1,18 @@
+# third-party reference clones (not ours)
+refs/
+
+# the song is not ours and is not redistributed
+song.mp3
+*.mp3
+*.wav
+
+# heavy renders
+shots/*.mp4
+shots/*.webm
+shots/*.png
+shots/*.html
+*.webm
+*.mp4
+
+# build artefacts
+node_modules/

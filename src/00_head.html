@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="dark">
+<title>world.execute(me);</title>
+<style>
+  html,body{margin:0;height:100%;background:#000;overflow:hidden}
+  body{font-family:"JetBrains Mono","IBM Plex Mono",Consolas,"Courier New",monospace}
+  #stage{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;
+         background:#000;display:block;image-rendering:auto}
+  #drop{position:fixed;inset:0;display:none;align-items:center;justify-content:center;
+        background:rgba(6,6,8,.9);z-index:20;color:#00F0FF;font-size:12px;letter-spacing:.3em}
+  #drop.on{display:flex}
+  body.idle{cursor:none}
+</style>
+</head>
+<body>
+<canvas id="stage" width="1920" height="1080"></canvas>
+<div id="drop">drop audio to sync</div>
+<input id="file" type="file" accept="audio/*" hidden>
+<script>

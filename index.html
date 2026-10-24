@@ -9079,6 +9079,464 @@ function drawFatalDeallocation(c, s){
   c.globalAlpha = 1;
 }
 
+/* ------------------------------------------------------------
+   7 · DNA HELIX TRANSCRIBER (Biochemical Bytecode Synthesizer)
+   Double helix transcribing base pairs into 8-bit ASCII bytecode
+   A ⇄ T (01000001 ⇄ 01010100), C ⇄ G (01000011 ⇄ 01000111)
+   ------------------------------------------------------------ */
+const DNA_BASE_PAIRS = [
+  { nameA: 'A', nameB: 'T', binA: '01000001', binB: '01010100', colA: '#E04050', colB: '#4A90E2' },
+  { nameA: 'T', nameB: 'A', binA: '01010100', binB: '01000001', colA: '#4A90E2', colB: '#E04050' },
+  { nameA: 'C', nameB: 'G', binA: '01000011', binB: '01000111', colA: '#FFB000', colB: '#50E3C2' },
+  { nameA: 'G', nameB: 'C', binA: '01000111', binB: '01000011', colA: '#50E3C2', colB: '#FFB000' }
+];
+
+function drawDNAHelixTranscriber(c, t, cx, cy, H_span, R, alpha){
+  H_span = H_span || 560;
+  R = R || 110;
+  alpha = alpha == null ? 0.85 : alpha;
+  if (alpha <= 0) return;
+
+  c.save();
+  c.globalAlpha = alpha;
+
+  const numRungs = 26;
+  const dy = H_span / (numRungs - 1);
+  const startY = -H_span * 0.5;
+  const twistSpeed = 1.35;
+  const rot3X = 0.22, rot3Y = t * 0.45;
+
+  const P1 = [];
+  const P2 = [];
+  const rungs = [];
+
+  for (let i = 0; i < numRungs; i++){
+    const y = startY + i * dy;
+    const theta = (i * 0.42) + t * twistSpeed;
+    const x1 = Math.cos(theta) * R;
+    const z1 = Math.sin(theta) * R;
+    const x2 = -x1;
+    const z2 = -z1;
+
+    const pr1 = SDK.project3D(x1, y, z1, rot3X, rot3Y, 0, 1100, cx, cy);
+    const pr2 = SDK.project3D(x2, y, z2, rot3X, rot3Y, 0, 1100, cx, cy);
+
+    P1.push(pr1);
+    P2.push(pr2);
+
+    const bp = DNA_BASE_PAIRS[(i + Math.floor(t * 0.5)) % DNA_BASE_PAIRS.length];
+    const avgZ = (z1 + z2) * 0.5;
+    rungs.push({ pr1: pr1, pr2: pr2, bp: bp, avgZ: avgZ, i: i, y: y });
+  }
+
+  /* Sort rungs back-to-front for proper depth sorting */
+  rungs.sort(function(a, b){ return a.avgZ - b.avgZ; });
+
+  /* 1. Draw rungs (hydrogen bonds) and floating bytecode */
+  c.font = '10px "JetBrains Mono",monospace';
+  c.textBaseline = 'middle';
+
+  for (let k = 0; k < rungs.length; k++){
+    const rg = rungs[k];
+    const p1 = rg.pr1, p2 = rg.pr2;
+    if (!p1 || !p2) continue;
+
+    const depthA = clamp((p1.s + p2.s) * 0.5, 0.25, 1.0);
+    c.globalAlpha = alpha * depthA;
+
+    /* Base pair bridge line with center bond gap */
+    const midX = (p1.x + p2.x) * 0.5;
+    const midY = (p1.y + p2.y) * 0.5;
+
+    c.strokeStyle = rg.bp.colA;
+    c.lineWidth = 2.2 * depthA;
+    c.beginPath();
+    c.moveTo(p1.x, p1.y);
+    c.lineTo(midX - (p2.x - p1.x) * 0.08, midY - (p2.y - p1.y) * 0.08);
+    c.stroke();
+
+    c.strokeStyle = rg.bp.colB;
+    c.beginPath();
+    c.moveTo(midX + (p2.x - p1.x) * 0.08, midY + (p2.y - p1.y) * 0.08);
+    c.lineTo(p2.x, p2.y);
+    c.stroke();
+
+    /* Center hydrogen bond connection dots */
+    c.fillStyle = C.bone;
+    c.fillRect(midX - 1.5, midY - 1.5, 3, 3);
+
+    /* Floating transcription bytecode (every other rung) */
+    if (rg.i % 3 === 0 && depthA > 0.45){
+      c.fillStyle = rg.bp.colA;
+      c.textAlign = 'right';
+      c.fillText(rg.bp.nameA + ' [' + rg.bp.binA + ']', p1.x - 12, p1.y);
+
+      c.fillStyle = rg.bp.colB;
+      c.textAlign = 'left';
+      c.fillText('[' + rg.bp.binB + '] ' + rg.bp.nameB, p2.x + 12, p2.y);
+    }
+  }
+
+  /* 2. Sugar-phosphate backbone continuous ribbon strands */
+  function drawStrand(points, col){
+    c.strokeStyle = col;
+    c.lineWidth = 2.4;
+    c.beginPath();
+    let started = false;
+    for (let i = 0; i < points.length; i++){
+      const pr = points[i];
+      if (!pr) continue;
+      if (!started){ c.moveTo(pr.x, pr.y); started = true; }
+      else c.lineTo(pr.x, pr.y);
+    }
+    c.stroke();
+
+    /* Phosphorus beads */
+    for (let i = 0; i < points.length; i++){
+      const pr = points[i];
+      if (!pr) continue;
+      const sz = 4.5 * pr.s;
+      c.fillStyle = C.bone;
+      c.fillRect(pr.x - sz*0.5, pr.y - sz*0.5, sz, sz);
+    }
+  }
+
+  c.globalAlpha = alpha * 0.88;
+  drawStrand(P1, C.accent);
+  drawStrand(P2, '#7A3EB1');
+
+  /* Header tag */
+  c.font = '11px "JetBrains Mono",monospace';
+  c.textAlign = 'center';
+  c.fillStyle = C.accent;
+  c.globalAlpha = alpha * 0.8;
+  c.fillText('DNA.REVERSE_SYNTHESIS :: A-T(2 H-BONDS) · C-G(3 H-BONDS)', cx, cy + H_span * 0.52 + 18);
+
+  c.restore();
+  c.globalAlpha = 1;
+}
+
+/* ------------------------------------------------------------
+   8 · MINKOWSKI SPACETIME CONE (Relativistic Causality & Light Cones)
+   ds^2 = -c^2 dt^2 + dx^2 + dy^2
+   Future cone (ct > 0), Past cone (ct < 0), Event Singularity NOW (t = 0)
+   ------------------------------------------------------------ */
+function drawMinkowskiSpacetimeCone(c, t, cx, cy, S, alpha){
+  S = S || 260;
+  alpha = alpha == null ? 0.85 : alpha;
+  if (alpha <= 0) return;
+
+  c.save();
+  c.globalAlpha = alpha;
+
+  const topY = cy - S;
+  const botY = cy + S;
+  const coneW = S * 1.18;
+  const radYFactor = 0.28;
+
+  /* 1. Light Cone Envelopes (ds^2 = 0 Photon Generatrices) */
+  c.strokeStyle = C.accent;
+  c.lineWidth = 1.6;
+  c.beginPath();
+  /* Future Cone V */
+  c.moveTo(cx - coneW, topY);
+  c.lineTo(cx, cy);
+  c.lineTo(cx + coneW, topY);
+  /* Past Cone Ʌ */
+  c.moveTo(cx - coneW, botY);
+  c.lineTo(cx, cy);
+  c.lineTo(cx + coneW, botY);
+  c.stroke();
+
+  /* 2. Spacetime Coordinate Grid & Spatial Slices (Ellipses) */
+  const slices = [0.28, 0.58, 0.88, 1.0];
+  c.lineWidth = 1.0;
+  for (let i = 0; i < slices.length; i++){
+    const u = slices[i];
+    const rx = coneW * u;
+    const ry = rx * radYFactor;
+    const yTop = cy - S * u;
+    const yBot = cy + S * u;
+
+    /* Future spatial slice */
+    c.strokeStyle = (i === slices.length - 1) ? C.bone : C.accent;
+    c.globalAlpha = alpha * (0.35 + 0.35 * u);
+    c.beginPath();
+    c.ellipse(cx, yTop, rx, ry, 0, 0, TAU);
+    c.stroke();
+
+    /* Past spatial slice */
+    c.beginPath();
+    c.ellipse(cx, yBot, rx, ry, 0, 0, TAU);
+    c.stroke();
+  }
+
+  /* 3. Hyperbolic Observer Worldlines (ds^2 < 0 Timelike Trajectories) */
+  c.strokeStyle = C.red;
+  c.lineWidth = 1.8;
+  c.globalAlpha = alpha * 0.85;
+
+  /* Observer curve in future cone */
+  c.beginPath();
+  const hwSteps = 40;
+  for (let i = 0; i <= hwSteps; i++){
+    const u = (i / hwSteps) * 2 - 1; // -1..1
+    const px = cx + u * coneW * 0.65;
+    const py = cy - Math.sqrt(Math.pow(S * 0.35, 2) + Math.pow(u * coneW * 0.65 * 0.85, 2));
+    if (i === 0) c.moveTo(px, py); else c.lineTo(px, py);
+  }
+  c.stroke();
+
+  /* Observer curve in past cone */
+  c.beginPath();
+  for (let i = 0; i <= hwSteps; i++){
+    const u = (i / hwSteps) * 2 - 1;
+    const px = cx + u * coneW * 0.65;
+    const py = cy + Math.sqrt(Math.pow(S * 0.35, 2) + Math.pow(u * coneW * 0.65 * 0.85, 2));
+    if (i === 0) c.moveTo(px, py); else c.lineTo(px, py);
+  }
+  c.stroke();
+
+  /* 4. Streaming Photon Packets along light cone surface */
+  const pCount = 8;
+  c.fillStyle = C.bone;
+  for (let i = 0; i < pCount; i++){
+    const pProg = fract(t * 0.8 + i / pCount);
+    const pxL = lerp(cx, cx - coneW, pProg);
+    const pyF = lerp(cy, topY, pProg);
+    const pyP = lerp(cy, botY, pProg);
+    const pxR = lerp(cx, cx + coneW, pProg);
+
+    c.globalAlpha = alpha * Math.sin(pProg * Math.PI) * 0.9;
+    c.fillRect(pxL - 2, pyF - 2, 4, 4);
+    c.fillRect(pxR - 2, pyF - 2, 4, 4);
+    c.fillRect(pxL - 2, pyP - 2, 4, 4);
+    c.fillRect(pxR - 2, pyP - 2, 4, 4);
+  }
+
+  /* 5. Central Singularity: NOW [t=0] Origin */
+  c.globalAlpha = alpha * 0.95;
+  c.strokeStyle = C.bone;
+  c.lineWidth = 1.4;
+  c.beginPath();
+  c.arc(cx, cy, 7, 0, TAU);
+  c.stroke();
+  c.fillStyle = C.red;
+  c.fillRect(cx - 2.5, cy - 2.5, 5, 5);
+
+  /* 6. Cosmological & Relativistic Annotations */
+  c.font = '10px "JetBrains Mono",monospace';
+  c.fillStyle = C.bone;
+  c.globalAlpha = alpha * 0.85;
+
+  c.textAlign = 'center';
+  c.fillText('FUTURE LIGHT CONE [ct > 0 · ds² < 0]', cx, topY - 14);
+  c.fillText('PAST LIGHT CONE [ct < 0 · ds² < 0]', cx, botY + 22);
+
+  c.textAlign = 'left';
+  c.fillStyle = C.accent;
+  c.fillText('NOW [t=0, x=0] · PRESENT EVENT', cx + 16, cy + 4);
+
+  c.textAlign = 'right';
+  c.fillText('SPACELIKE ELSEWHERE (ds² > 0)', cx - coneW - 8, cy);
+  c.textAlign = 'left';
+  c.fillText('CAUSALITY HORIZON (ds² = 0)', cx + coneW + 8, cy);
+
+  c.font = '12px "Times New Roman",Georgia,serif';
+  c.textAlign = 'center';
+  c.fillStyle = C.bone;
+  c.fillText('ds² = -c²dt² + dx² + dy² + dz²', cx, topY - 32);
+
+  c.restore();
+  c.globalAlpha = 1;
+}
+
+/* ------------------------------------------------------------
+   9 · OPHANIM WHEELS 3D (Biblical Throne Angel - Wheels of Fire)
+   Ezekiel 1:15-18 — "Wheel within a wheel, full of eyes round about"
+   3 Concentric Gyroscopic Gimbal Rings on non-coplanar Euler axes
+   studded with 3D optical ocular apertures gazing outward
+   ------------------------------------------------------------ */
+function drawOphanimWheels3D(c, t, cx, cy, R, b, alpha){
+  R = R || 400;
+  b = b || { kick: 0, snare: 0 };
+  alpha = alpha == null ? 0.9 : alpha;
+  if (alpha <= 0) return;
+
+  c.save();
+  c.globalAlpha = alpha;
+
+  const kick = b.kick || 0;
+  const pulseR = R * (1 + 0.05 * kick);
+
+  /* 3 Gyroscopic concentric rings configuration */
+  const rings = [
+    { r: pulseR * 1.00, eyes: 16, rx: t * 0.65, ry: t * 0.42, rz: 0.35, col: C.accent },
+    { r: pulseR * 0.74, eyes: 12, rx: -t * 0.82, ry: 0.55, rz: t * 0.60, col: C.bone },
+    { r: pulseR * 0.50, eyes: 8,  rx: 0.45, ry: -t * 1.10, rz: -t * 0.75, col: C.red }
+  ];
+
+  /* 3D rotation helper: Euler angles rx, ry, rz */
+  function rotate3D(x, y, z, rx, ry, rz){
+    const cx1 = Math.cos(rx), sx1 = Math.sin(rx);
+    const y1 = y * cx1 - z * sx1;
+    const z1 = y * sx1 + z * cx1;
+
+    const cy1 = Math.cos(ry), sy1 = Math.sin(ry);
+    const x2 = x * cy1 + z1 * sy1;
+    const z2 = -x * sy1 + z1 * cy1;
+
+    const cz1 = Math.cos(rz), sz1 = Math.sin(rz);
+    const x3 = x2 * cz1 - y1 * sz1;
+    const y3 = x2 * sz1 + y1 * cz1;
+    return [x3, y3, z2];
+  }
+
+  /* All eyes collected for back-to-front depth rendering */
+  const allEyes = [];
+
+  /* Render each ring's circular rim in 3D */
+  for (let rIdx = 0; rIdx < rings.length; rIdx++){
+    const rg = rings[rIdx];
+    const segments = 48;
+    const rimPoints = [];
+
+    for (let i = 0; i <= segments; i++){
+      const phi = (i / segments) * TAU;
+      const lx = Math.cos(phi) * rg.r;
+      const ly = Math.sin(phi) * rg.r;
+      const lz = 0;
+
+      const rot = rotate3D(lx, ly, lz, rg.rx, rg.ry, rg.rz);
+      const pr = SDK.project3D(rot[0], rot[1], rot[2], 0, 0, 0, 1200, cx, cy);
+      rimPoints.push(pr);
+    }
+
+    /* Draw circular rim */
+    c.strokeStyle = rg.col;
+    c.lineWidth = (rIdx === 2 ? 2.4 : 1.6);
+    c.globalAlpha = alpha * (0.55 + 0.25 * kick);
+    c.beginPath();
+    for (let i = 0; i < rimPoints.length; i++){
+      const pr = rimPoints[i];
+      if (!pr) continue;
+      if (i === 0) c.moveTo(pr.x, pr.y); else c.lineTo(pr.x, pr.y);
+    }
+    c.stroke();
+
+    /* Collect eyes along the rim */
+    for (let e = 0; e < rg.eyes; e++){
+      const phi = (e / rg.eyes) * TAU;
+      const lx = Math.cos(phi) * rg.r;
+      const ly = Math.sin(phi) * rg.r;
+      const rot = rotate3D(lx, ly, 0, rg.rx, rg.ry, rg.rz);
+
+      const rotNorm = rotate3D(Math.cos(phi), Math.sin(phi), 0, rg.rx, rg.ry, rg.rz);
+
+      const pr = SDK.project3D(rot[0], rot[1], rot[2], 0, 0, 0, 1200, cx, cy);
+      if (pr){
+        allEyes.push({
+          pr: pr,
+          depth: rot[2],
+          col: rg.col,
+          norm: rotNorm,
+          ringIdx: rIdx,
+          eyeIdx: e
+        });
+      }
+    }
+  }
+
+  /* Sort all eyes by depth back-to-front */
+  allEyes.sort(function(a, b){ return a.depth - b.depth; });
+
+  /* Render Ezekiel's Eyes (Ocular Apertures) */
+  for (let i = 0; i < allEyes.length; i++){
+    const item = allEyes[i];
+    const pr = item.pr;
+    const depthA = clamp(0.35 + (item.depth + R) / (2 * R), 0.15, 1.0);
+    const eyeR = (11 + 4 * (2 - item.ringIdx)) * pr.s;
+
+    c.save();
+    c.translate(pr.x, pr.y);
+    c.globalAlpha = alpha * depthA;
+
+    /* Sclera: Almond eye outline using two quadratic bezier curves */
+    c.fillStyle = '#0B090A';
+    c.strokeStyle = item.col;
+    c.lineWidth = 1.4;
+
+    c.beginPath();
+    c.moveTo(-eyeR * 1.3, 0);
+    c.quadraticCurveTo(0, -eyeR * 0.85, eyeR * 1.3, 0);
+    c.quadraticCurveTo(0, eyeR * 0.85, -eyeR * 1.3, 0);
+    c.closePath();
+    c.fill();
+    c.stroke();
+
+    /* Iris */
+    c.fillStyle = (item.ringIdx === 2) ? C.red : (item.ringIdx === 1 ? '#E04050' : C.accent);
+    c.beginPath();
+    c.arc(0, 0, eyeR * 0.52, 0, TAU);
+    c.fill();
+
+    /* Pupil (dilates on kick) */
+    const pupilR = eyeR * (0.24 + 0.12 * kick);
+    c.fillStyle = '#000000';
+    c.beginPath();
+    c.arc(0, 0, pupilR, 0, TAU);
+    c.fill();
+
+    /* Cornea glint */
+    c.fillStyle = C.bone;
+    c.fillRect(-pupilR * 0.4, -pupilR * 0.6, pupilR * 0.5, pupilR * 0.5);
+
+    c.restore();
+  }
+
+  /* Central Divine Singularity */
+  c.save();
+  c.translate(cx, cy);
+
+  /* Corona fire spokes radiating from center */
+  const fireSpokes = 24;
+  c.strokeStyle = C.red;
+  c.lineWidth = 1.5;
+  for (let s = 0; s < fireSpokes; s++){
+    const ang = (s / fireSpokes) * TAU + t * 0.5;
+    const len = (40 + 35 * Math.sin(ang * 4 + t * 3)) * (1 + 0.4 * kick);
+    c.globalAlpha = alpha * (0.4 + 0.4 * Math.cos(ang * 3 + t * 2));
+    c.beginPath();
+    c.moveTo(0, 0);
+    c.lineTo(Math.cos(ang) * len, Math.sin(ang) * len);
+    c.stroke();
+  }
+
+  /* Blinding Core */
+  c.fillStyle = C.bone;
+  c.globalAlpha = alpha * (0.85 + 0.15 * kick);
+  c.beginPath();
+  c.arc(0, 0, 16 + 12 * kick, 0, TAU);
+  c.fill();
+
+  c.fillStyle = C.accent;
+  c.beginPath();
+  c.arc(0, 0, 8 + 6 * kick, 0, TAU);
+  c.fill();
+
+  c.restore();
+
+  /* Label */
+  c.font = '10px "JetBrains Mono",monospace';
+  c.textAlign = 'center';
+  c.fillStyle = C.red;
+  c.globalAlpha = alpha * 0.75;
+  c.fillText('OPHANIM :: GALGALIM (EZEKIEL 1:18) · WHEEL WITHIN A WHEEL', cx, cy + R * 1.08);
+
+  c.restore();
+  c.globalAlpha = 1;
+}
+
 /* Export to global director scope */
 window.AI_VISION = {
   drawTesseract4D: drawTesseract4D,
@@ -9086,7 +9544,10 @@ window.AI_VISION = {
   drawLossLandscape: drawLossLandscape,
   drawTokenCondensation: drawTokenCondensation,
   drawTensorCatastrophe: drawTensorCatastrophe,
-  drawFatalDeallocation: drawFatalDeallocation
+  drawFatalDeallocation: drawFatalDeallocation,
+  drawDNAHelixTranscriber: drawDNAHelixTranscriber,
+  drawMinkowskiSpacetimeCone: drawMinkowskiSpacetimeCone,
+  drawOphanimWheels3D: drawOphanimWheels3D
 };
 
 })();
@@ -9643,6 +10104,16 @@ function world05_v4(c, s){
   if (phraseLt < 2.15){
     if (phraseIdx % 2 === 0) world05n(c, s);
     else world05d(c, s);
+
+    /* Relativistic Minkowski Spacetime Cone in instrument bay */
+    if (typeof AI_VISION !== 'undefined' && AI_VISION.drawMinkowskiSpacetimeCone){
+      const mX = (phraseIdx % 2 === 1) ? W * 0.78 : W * 0.50;
+      const mY = H * 0.44;
+      const mAlpha = (phraseIdx % 2 === 1) ? 0.85 : 0.32;
+      const mScale = (phraseIdx % 2 === 1) ? 210 : 175;
+      AI_VISION.drawMinkowskiSpacetimeCone(c, t, mX, mY, mScale, mAlpha);
+    }
+
     drawHarnessOverlayCard(c, s, 44, H - 110, 620, true);
   } else {
     drawChorusPlate1(c, phraseIdx, phraseLt - 2.15, b, { broken: false });
@@ -9692,6 +10163,9 @@ function world06_v4(c, s){
   } else if (phase === 1){
     /* Phase 2 (3.69..7.38s): TOMATO Cross-Section + 22-Carbon Lycopene Chain -> ANTIOXIDANTS */
     world06f(c, s);
+    if (typeof AI_VISION !== 'undefined' && AI_VISION.drawDNAHelixTranscriber){
+      AI_VISION.drawDNAHelixTranscriber(c, t, W * 0.83, H * 0.44, 520, 85, 0.82);
+    }
     drawKineticKeywordStamp(c, 'ANTIOXIDANTS', lt - 2.6, { size: 168, y: H*0.90 });
   } else if (phase === 2){
     /* Phase 3 (7.38..11.07s): TABBY CAT Three-Ink Silhouette + 25.6 Hz Purr Stripe Waves -> ENJOYMENT */
@@ -10249,6 +10723,14 @@ function world13_v4(c, s){
       x += (k % 2 ? 1 : -1) * R * 0.08;
       y -= R * 0.04;
       R *= 0.62;
+    }
+
+    /* 3D Ophanim Gyroscopic Throne Angel Wheels */
+    if (typeof AI_VISION !== 'undefined' && AI_VISION.drawOphanimWheels3D){
+      const ophAlpha = smoothstep(1.5, 3.5, t) * (t < 13.5 ? 0.88 : (1 - smoothstep(13.5, 14.2, t)));
+      if (ophAlpha > 0.02){
+        AI_VISION.drawOphanimWheels3D(c, t, cx, cy, 380, b, ophAlpha);
+      }
     }
 
     /* Jagged tear along both edges of the frame */

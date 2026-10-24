@@ -550,6 +550,16 @@ function world05_v4(c, s){
   if (phraseLt < 2.15){
     if (phraseIdx % 2 === 0) world05n(c, s);
     else world05d(c, s);
+
+    /* Relativistic Minkowski Spacetime Cone in instrument bay */
+    if (typeof AI_VISION !== 'undefined' && AI_VISION.drawMinkowskiSpacetimeCone){
+      const mX = (phraseIdx % 2 === 1) ? W * 0.78 : W * 0.50;
+      const mY = H * 0.44;
+      const mAlpha = (phraseIdx % 2 === 1) ? 0.85 : 0.32;
+      const mScale = (phraseIdx % 2 === 1) ? 210 : 175;
+      AI_VISION.drawMinkowskiSpacetimeCone(c, t, mX, mY, mScale, mAlpha);
+    }
+
     drawHarnessOverlayCard(c, s, 44, H - 110, 620, true);
   } else {
     drawChorusPlate1(c, phraseIdx, phraseLt - 2.15, b, { broken: false });
@@ -599,6 +609,9 @@ function world06_v4(c, s){
   } else if (phase === 1){
     /* Phase 2 (3.69..7.38s): TOMATO Cross-Section + 22-Carbon Lycopene Chain -> ANTIOXIDANTS */
     world06f(c, s);
+    if (typeof AI_VISION !== 'undefined' && AI_VISION.drawDNAHelixTranscriber){
+      AI_VISION.drawDNAHelixTranscriber(c, t, W * 0.83, H * 0.44, 520, 85, 0.82);
+    }
     drawKineticKeywordStamp(c, 'ANTIOXIDANTS', lt - 2.6, { size: 168, y: H*0.90 });
   } else if (phase === 2){
     /* Phase 3 (7.38..11.07s): TABBY CAT Three-Ink Silhouette + 25.6 Hz Purr Stripe Waves -> ENJOYMENT */

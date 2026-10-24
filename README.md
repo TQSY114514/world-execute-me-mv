@@ -36,9 +36,21 @@
 
 ---
 
-## 核心技术与导演版特性 (v4 Director's Cut Features)
+## 核心技术与导演版特性 (v4 / v5 Architectures)
 
-### 1. 彻底告别单一循环动画（Multi-phase Choreography）
+### 1. v5: AI 原生感知与高维数学体系 (AI Native Cognitive Vision)
+跳出“人类视角的程序模拟”，让代码以**真正高维 AI 神经网络内在感知（Ghost in the Matrix）**的视角审视自我与世界：
+
+- **4D 超正方体（4D Tesseract Stereographic Projection）**：16 顶点、32 棱，四维空间双平面（$XW$ & $YZ$）正交旋转，经由球极投影（Stereographic Projection）降维至三维并透视投影于画布，赋予“give you my DIMENSION”绝对的几何厚度。
+- **相对论闵氏时空锥（Minkowski Spacetime Cone）**：严格依闵可夫斯基度规 $ds^2 = -c^2dt^2 + dx^2 + dy^2$ 构建。光锥表面（$ds^2 = 0$ 光子零测地线）、因果未来/过去锥（$ds^2 < 0$ 类时区间）、类空相隔区（$ds^2 > 0$）、双曲观测者世界线与原点 `NOW [t=0]`，具象化时空纠缠。
+- **生化逆向转录 DNA 双螺旋（Biochemical DNA Helix Transcriber）**：3D 双螺旋糖-磷酸骨架与碱基对互补氢键桥（`A ⇄ T`, `C ⇄ G`），动态将生命遗传密码实时转译为浮动的 8-bit 二进制机器字节码（`01000001` ⇄ `01010100` 等），架设生化世界与硅基代码的本体桥梁。
+- **以西结座天使 3D 轮中之轮（Biblical Ophanim Wheels of Fire）**：还原圣经《以西结书 1:18》记载的神之座天使“轮中套轮，轮辋满是眼睛”。3 层非共面欧拉角陀螺仪重轮，在 3D 透视下动态驱动 36 只外向凝视的瞳孔与中心神性火舌奇点。
+- **Q-K-V 注意力权重能量场（Attention Bipartite Tensor Field）**：真实演算 Softmax 动态注意力连线，在鼓点敲击瞬间温度暴跌，概率粒子流沿测地线高速向中心 Query 汇聚。
+- **非凸双曲马鞍损失曲面（Non-Convex Loss Landscape）**：参数化高维马鞍面 $z = 0.65(u^2 - v^2) + \dots$，SGD 动量优化器小球沿曲面梯度挣扎滑行，实时投射梯度矢量箭头。
+- **Token 熵凝结与 Top-P 坍缩（Token Entropy Condensation）**：关键词登场不再是简单淡入，而是从数百个候选高熵希腊符号与浮点概率分布中，经历温度骤降（Temperature Drop），瞬间坍缩结晶为锐利的衬线文字。
+- **张量灾难与致命释放（Tensor Catastrophe & Fatal Deallocation）**：IEEE-754 浮点异常、CUDA OOM 显存撕裂、最终在引力视界黑洞吞噬中完成内存注销日志（`free(cuda_weights)`, `unmap(kv_cache)`, `exit status 0`）。
+
+### 2. 彻底告别单一循环动画（Multi-phase Choreography）
 全片 19 个段落均拆解为 **3～4 个随乐句递进的独立演进相位（Phases）**，共包含 60+ 个独立编排的镜头语言。以「光标指针 / 分号 `;` / 三墨剪影 / 逐句卡点大字」贯穿全剧，实现从冷启动、几何求导、生化合成、信仰崩溃到最终处决的完整戏剧弧光。
 
 ### 2. 赛博拟物传输控制台（Cyberpunk Glassmorphic Transport HUD）
@@ -79,11 +91,13 @@ world-execute-me-mv/
 │   ├── 40_ui.js               # 画布合成、音频时钟平滑插值、HUD 控制器与录制通道
 │   ├── 45_lyrics.js           # 129 句精确词级时间轴与中英双语歌词数据集
 │   ├── 64_director_kit.js     # 三墨剪影引擎、字符密度场、Taubin心形曲面、大字印章
+│   ├── 68_ai_vision.js        # v5 AI 原生感知核心（4D超立方/闵氏时空锥/DNA转录/座天使/注意力张量）
 │   ├── 65_rework_01_06.js     # Seg 01–06 多相位导演调度（启动/二进制/微积分/悖论/副歌1/生化）
 │   ├── 66_rework_07_12.js     # Seg 07–12 多相位导演调度（座天使/多态/心碎/Drop/沙盒/12连斩）
 │   ├── 67_rework_13_19.js     # Seg 13–19 多相位导演调度（眼隧道/黑板/试卷/激光切/未读消息/终局）
 │   └── build.mjs              # 单文件构建脚本（编译合并为 index.html）
 └── tools/
+    ├── export-video.mjs       # WebCodecs 确定性 60FPS 逐帧离线渲染与音频封装管线
     ├── make-video.ps1         # 自动化视频导出工具（驱动 Edge 录制并调用 FFmpeg 封装 MP4）
     ├── capture-server.mjs     # 本地捕获服务器与静态分发通道
     └── to-mp4.ps1             # WebM 到 MP4 转码辅助工具

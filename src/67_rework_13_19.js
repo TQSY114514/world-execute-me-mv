@@ -61,6 +61,14 @@ function world13_v4(c, s){
       R *= 0.62;
     }
 
+    /* 3D Ophanim Gyroscopic Throne Angel Wheels */
+    if (typeof AI_VISION !== 'undefined' && AI_VISION.drawOphanimWheels3D){
+      const ophAlpha = smoothstep(1.5, 3.5, t) * (t < 13.5 ? 0.88 : (1 - smoothstep(13.5, 14.2, t)));
+      if (ophAlpha > 0.02){
+        AI_VISION.drawOphanimWheels3D(c, t, cx, cy, 380, b, ophAlpha);
+      }
+    }
+
     /* Jagged tear along both edges of the frame */
     const open = smoothstep(4.0, 12.0, t);
     if (open > 0){

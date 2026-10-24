@@ -503,18 +503,17 @@ function renderFrameAt(t){
     rect(W*0.5 - 8, H*0.48 - 16, 16, 32, C.accent, mp * 0.9);
   }
 
-  /* snapshot of the world layer — the breach layer can rip it over the harness */
-  if (!LEAN){ wbufCtx.globalAlpha = 1; wbufCtx.globalCompositeOperation = 'source-over';
-  wbufCtx.drawImage(canvas, 0, 0); }
   const newScene = (typeof NEW_SCENE_IDS !== 'undefined' && NEW_SCENE_IDS[s.seg.id]);
   if (!bare && !newScene){
+    if (!LEAN){ wbufCtx.globalAlpha = 1; wbufCtx.globalCompositeOperation = 'source-over'; wbufCtx.drawImage(canvas, 0, 0); }
     if (SKIN_SEG && SKIN_SEG[s.seg.id]) drawSkinChat(ctx, s);
     else { drawSplit(ctx, s); drawLeftPanel(ctx, s); }
   }
   drawChrome(ctx, s);
-  if (!LEAN){ fbufCtx.globalAlpha = 1; fbufCtx.globalCompositeOperation = 'source-over';
-  fbufCtx.drawImage(canvas, 0, 0); }
-  if (BREACH_REGISTRY[s.seg.id]) BREACH_REGISTRY[s.seg.id](ctx, s);
+  if (!bare && !newScene && !LEAN){
+    fbufCtx.globalAlpha = 1; fbufCtx.globalCompositeOperation = 'source-over'; fbufCtx.drawImage(canvas, 0, 0);
+  }
+  if (!newScene && BREACH_REGISTRY[s.seg.id]) BREACH_REGISTRY[s.seg.id](ctx, s);
 
   /* Selective glitch slices ONLY on overload / breach segments (never on clean paper plates) */
   const isGlitchSeg = (s.seg.id === 10 || s.seg.id === 13 || s.seg.id === 16 ||
@@ -830,6 +829,65 @@ function startRec(){
     document.title = 'REC — world.execute(me);';
   }, 700);
 }
+
+/* ---------- offline deterministic WebCodecs 60fps export ---------- */
+async function startOfflineExport(){
+  RT.playing = false;
+  if (typeof document !== 'undefined'){
+    const hud = document.getElementById('player-hud');
+    if (hud) hud.style.display = 'none';
+    const initOverlay = document.getElementById('init-overlay');
+    if (initOverlay) initOverlay.style.display = 'none';
+  }
+
+  const chunks = [];
+  const totalFrames = Math.ceil(DURATION * 60);
+  const encoder = new VideoEncoder({
+    output: function(chunk){
+      const buf = new Uint8Array(chunk.byteLength);
+      chunk.copyTo(buf);
+      chunks.push(buf);
+    },
+    error: function(e){ console.error('VideoEncoder error:', e); }
+  });
+
+  encoder.configure({
+    codec: 'avc1.640028',
+    width: W,
+    height: H,
+    bitrate: 16000000,
+    framerate: 60,
+    avc: { format: 'annexb' }
+  });
+
+  for (let f = 0; f < totalFrames; f++){
+    while (encoder.encodeQueueSize > 6){
+      await new Promise(function(r){ setTimeout(r, 4); });
+    }
+    const t = f / 60.0;
+    renderFrameAt(t);
+
+    const frame = new VideoFrame(canvas, { timestamp: Math.round(f * 16666.666) });
+    encoder.encode(frame, { keyFrame: (f % 60 === 0) });
+    frame.close();
+
+    if (chunks.length >= 60){
+      const blob = new Blob(chunks, { type: 'application/octet-stream' });
+      chunks.length = 0;
+      await fetch('/chunk_batch', { method: 'POST', body: blob });
+      fetch('/progress?f=' + f + '&total=' + totalFrames).catch(function(){});
+    }
+  }
+
+  await encoder.flush();
+  if (chunks.length > 0){
+    const blob = new Blob(chunks, { type: 'application/octet-stream' });
+    chunks.length = 0;
+    await fetch('/chunk_batch', { method: 'POST', body: blob });
+  }
+  await fetch('/done');
+}
+
 function stopRec(){
   if (rec && rec.state !== 'inactive') rec.stop();
   RT.playing = false;
@@ -1125,10 +1183,14 @@ if (params.get && params.get('test') === '1'){
   const up = params.get('upload');
   if (up) canvas.toBlob(function(b){ fetch(up, { method:'POST', body:b, mode:'cors' }); }, 'image/png');
 } else {
-  if (typeof document !== 'undefined' && document.getElementById && document.getElementById('player-hud')) setupHUD();
-  renderFrameAt(RT.t);
-  updateTimelineUI(RT.t);
-  if (params.get && params.get('record') === '1') setTimeout(startRec, 300);
-  requestAnimationFrame(loop);
+  if (params.get && params.get('export') === '1'){
+    setTimeout(startOfflineExport, 100);
+  } else {
+    if (typeof document !== 'undefined' && document.getElementById && document.getElementById('player-hud')) setupHUD();
+    renderFrameAt(RT.t);
+    updateTimelineUI(RT.t);
+    if (params.get && params.get('record') === '1') setTimeout(startRec, 300);
+    requestAnimationFrame(loop);
+  }
 }
 })();

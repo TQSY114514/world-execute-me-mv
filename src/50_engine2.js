@@ -132,8 +132,9 @@ const POST = {
 };
 POST.b1.width = POST.bw; POST.b1.height = POST.bh;
 POST.b2.width = POST.bw; POST.b2.height = POST.bh;
-POST.c1.width = W; POST.c1.height = H;
-POST.c2.width = W; POST.c2.height = H;
+POST.cw = 960; POST.ch = 540;
+POST.c1.width = POST.cw; POST.c1.height = POST.ch;
+POST.c2.width = POST.cw; POST.c2.height = POST.ch;
 POST.b1x = POST.b1.getContext('2d');
 POST.b2x = POST.b2.getContext('2d');
 POST.c1x = POST.c1.getContext('2d');
@@ -180,25 +181,25 @@ function postProcess(c, t, kick, opts){
   const ch = opts.chroma == null ? (0.6 + kick * 2.2) : opts.chroma;
   if (kick > 0.55 && ch > 0.8){
     POST.c1x.globalCompositeOperation = 'source-over';
-    POST.c1x.clearRect(0, 0, W, H);
-    POST.c1x.drawImage(canvas, 0, 0);
+    POST.c1x.clearRect(0, 0, POST.cw, POST.ch);
+    POST.c1x.drawImage(canvas, 0, 0, POST.cw, POST.ch);
     POST.c1x.globalCompositeOperation = 'multiply';
     POST.c1x.fillStyle = '#FF0000';
-    POST.c1x.fillRect(0, 0, W, H);
+    POST.c1x.fillRect(0, 0, POST.cw, POST.ch);
 
     POST.c2x.globalCompositeOperation = 'source-over';
-    POST.c2x.clearRect(0, 0, W, H);
-    POST.c2x.drawImage(canvas, 0, 0);
+    POST.c2x.clearRect(0, 0, POST.cw, POST.ch);
+    POST.c2x.drawImage(canvas, 0, 0, POST.cw, POST.ch);
     POST.c2x.globalCompositeOperation = 'multiply';
     POST.c2x.fillStyle = '#0044FF';
-    POST.c2x.fillRect(0, 0, W, H);
+    POST.c2x.fillRect(0, 0, POST.cw, POST.ch);
 
     const d = ch * (0.6 + kick);
     c.save();
     c.globalCompositeOperation = 'lighter';
     c.globalAlpha = 0.34;
-    c.drawImage(POST.c1, -d, 0);
-    c.drawImage(POST.c2, d, 0);
+    c.drawImage(POST.c1, -d, 0, W, H);
+    c.drawImage(POST.c2, d, 0, W, H);
     c.restore();
   }
 
@@ -207,8 +208,8 @@ function postProcess(c, t, kick, opts){
   if (!POST.gp) POST.gp = c.createPattern(tile, 'repeat');
   const f = Math.floor(t * 60);
   c.save();
-  c.globalAlpha = 0.075;
-  c.globalCompositeOperation = 'overlay';
+  c.globalAlpha = 0.038;
+  c.globalCompositeOperation = 'source-over';
   c.translate((f*37) % 256 - 256, (f*61) % 256 - 256);
   c.fillStyle = POST.gp;
   c.fillRect(0, 0, W + 512, H + 512);

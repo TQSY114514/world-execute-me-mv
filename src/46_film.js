@@ -15,6 +15,13 @@ const GRAIN_TILE = (function(){
   return cv;
 })();
 let GRAIN_PAT = null;
+const GATE_PAT = (function(){
+  const cv = document.createElement('canvas'); cv.width = 1; cv.height = 8;
+  const g = cv.getContext('2d');
+  g.fillStyle = '#000'; g.fillRect(0, 0, 1, 4);
+  g.fillStyle = '#fff'; g.fillRect(0, 4, 1, 4);
+  return g.createPattern(cv, 'repeat');
+})();
 
 const LEAN = /(\?|&)lean=1/.test(location.search);
 const BLOOM = document.createElement('canvas');
@@ -42,8 +49,8 @@ function drawFilmLayer(c, t){
 
   /* grain */
   c.save();
-  c.globalAlpha = 0.055;
-  c.globalCompositeOperation = 'overlay';
+  c.globalAlpha = 0.030;
+  c.globalCompositeOperation = 'source-over';
   c.translate((f * 37) % 192 - 192, (f * 53) % 192 - 192);
   c.fillStyle = GRAIN_PAT;
   c.fillRect(0, 0, W + 384, H + 384);
@@ -56,11 +63,12 @@ function drawFilmLayer(c, t){
   c.fillStyle = vg;
   c.fillRect(0, 0, W, H);
 
-  /* faint horizontal harmonics — the film gate */
-  c.globalAlpha = 0.020;
-  for (let y = 0; y < H; y += 4){
-    c.fillStyle = (y % 8 === 0) ? '#000' : '#fff';
-    c.fillRect(0, y, W, 1);
+  /* faint horizontal harmonics — the film gate (single pattern fill) */
+  if (GATE_PAT){
+    c.save();
+    c.globalAlpha = 0.016;
+    c.fillStyle = GATE_PAT;
+    c.fillRect(0, 0, W, H);
+    c.restore();
   }
-  c.globalAlpha = 1;
 }

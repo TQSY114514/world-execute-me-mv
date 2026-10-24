@@ -422,27 +422,27 @@ function drawPerspectiveFloor(c, t, col, alpha, horizonY){
   c.save();
   c.strokeStyle = col || C.grid;
   c.lineWidth = 1;
-  /* radial perspective lines */
+  /* radial perspective lines in one path */
+  c.beginPath();
   for (let i=-12; i<=12; i++){
     const xTop = W*0.5 + i * 38;
     const xBot = W*0.5 + i * 240;
-    c.globalAlpha = (alpha || 0.25) * (1 - Math.abs(i)/14);
-    c.beginPath();
     c.moveTo(xTop, hy);
     c.lineTo(xBot, H);
-    c.stroke();
   }
-  /* horizontal depth lines moving forward */
+  c.globalAlpha = (alpha || 0.25) * 0.8;
+  c.stroke();
+  /* horizontal depth lines in one path */
+  c.beginPath();
   const scroll = (t * 0.8) % 1;
   for (let j=0; j<14; j++){
     const p = Math.pow((j + scroll) / 14, 2.1);
     const y = hy + p * (H - hy);
-    c.globalAlpha = (alpha || 0.25) * p;
-    c.beginPath();
     c.moveTo(0, y);
     c.lineTo(W, y);
-    c.stroke();
   }
+  c.globalAlpha = (alpha || 0.25) * 0.7;
+  c.stroke();
   c.restore();
   c.globalAlpha = 1;
 }
@@ -532,10 +532,18 @@ function drawKineticKeywordStamp(c, word, age, opts){
   c.textAlign = 'center';
   c.textBaseline = 'alphabetic';
   let sz = opts.size || 156;
-  c.font = '800 ' + sz + 'px "Times New Roman",Georgia,serif';
-  while (c.measureText(word).width > 1720 && sz > 48){
-    sz -= 6;
+  if (!drawKineticKeywordStamp._stampSz) drawKineticKeywordStamp._stampSz = Object.create(null);
+  const kSz = word + '|' + sz;
+  if (drawKineticKeywordStamp._stampSz[kSz]){
+    sz = drawKineticKeywordStamp._stampSz[kSz];
     c.font = '800 ' + sz + 'px "Times New Roman",Georgia,serif';
+  } else {
+    c.font = '800 ' + sz + 'px "Times New Roman",Georgia,serif';
+    while (c.measureText(word).width > 1720 && sz > 48){
+      sz -= 6;
+      c.font = '800 ' + sz + 'px "Times New Roman",Georgia,serif';
+    }
+    drawKineticKeywordStamp._stampSz[kSz] = sz;
   }
   c.globalAlpha = fade * 0.85;
   c.fillStyle = shCol;

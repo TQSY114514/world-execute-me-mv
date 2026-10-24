@@ -33,10 +33,18 @@ function pWord(c, word, opts){
   const col = opts.col || PST.ink;
   c.textAlign = 'center'; c.textBaseline = 'alphabetic';
   let size = opts.size || 200;
-  c.font = '700 ' + size + 'px "Times New Roman",Georgia,serif';
-  while (c.measureText(word).width > maxW && size > 36){
-    size -= 6;
+  if (!pWord._sz) pWord._sz = Object.create(null);
+  const kSz = word + '|' + size + '|' + maxW;
+  if (pWord._sz[kSz]){
+    size = pWord._sz[kSz];
     c.font = '700 ' + size + 'px "Times New Roman",Georgia,serif';
+  } else {
+    c.font = '700 ' + size + 'px "Times New Roman",Georgia,serif';
+    while (c.measureText(word).width > maxW && size > 36){
+      size -= 6;
+      c.font = '700 ' + size + 'px "Times New Roman",Georgia,serif';
+    }
+    pWord._sz[kSz] = size;
   }
   const x = W*0.5, y = opts.y || H*0.90;
   c.save(); c.globalAlpha = 0.9; c.fillStyle = opts.shadow || PST.accent;

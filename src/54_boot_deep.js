@@ -39,26 +39,53 @@ function bLorenz(c, box, t, b){
   const S = box.w / 62;
   const cx = box.x + box.w*0.52, cy = box.y + box.h*0.52;
 
-  /* trailing polyline, depth-sorted by segment */
+  /* trailing polyline, batched single-path render */
+  const tailEnd = Math.max(0, reveal - 90);
   let prev = null;
-  for (let i=0;i<reveal;i++){
+  c.save();
+
+  /* 1. cool tail path */
+  if (tailEnd > 1){
+    c.beginPath();
+    for (let i=0; i<tailEnd; i++){
+      const p = pts[i];
+      const rx = p[0]*Math.cos(rot) - p[2]*Math.sin(rot);
+      const rz = p[0]*Math.sin(rot) + p[2]*Math.cos(rot);
+      const k = 1 / (1 + rz * 0.018);
+      const x = cx + (rx - 2) * S * k;
+      const y = cy + ((p[2] - 25) * tilt + rz * 0.9) * S * k;
+      if (i === 0) c.moveTo(x, y); else c.lineTo(x, y);
+      prev = [x, y];
+    }
+    c.strokeStyle = C.bone;
+    c.lineWidth = 0.8;
+    c.globalAlpha = 0.28;
+    c.stroke();
+  }
+
+  /* 2. hot head path */
+  c.beginPath();
+  let headStarted = false;
+  for (let i = tailEnd; i < reveal; i++){
     const p = pts[i];
     const rx = p[0]*Math.cos(rot) - p[2]*Math.sin(rot);
     const rz = p[0]*Math.sin(rot) + p[2]*Math.cos(rot);
     const k = 1 / (1 + rz * 0.018);
     const x = cx + (rx - 2) * S * k;
     const y = cy + ((p[2] - 25) * tilt + rz * 0.9) * S * k;
-    if (prev){
-      const age = (reveal - i);
-      const hot = age < 90 ? (1 - age/90) : 0;
-      c.strokeStyle = hot > 0.55 ? C.accent : C.bone;
-      c.globalAlpha = clamp(0.06 + k*0.30, 0.04, 0.55) * (0.7 + 0.3*hot);
-      c.lineWidth = 0.7 + hot*1.6;
-      c.beginPath(); c.moveTo(prev[0], prev[1]); c.lineTo(x, y); c.stroke();
+    if (!headStarted){
+      if (prev) c.moveTo(prev[0], prev[1]);
+      else c.moveTo(x, y);
+      headStarted = true;
     }
+    c.lineTo(x, y);
     prev = [x, y];
   }
-  c.globalAlpha = 1;
+  c.strokeStyle = C.accent;
+  c.lineWidth = 1.8;
+  c.globalAlpha = 0.88;
+  c.stroke();
+  c.restore();
 
   /* the head */
   if (prev){

@@ -4125,6 +4125,13 @@ const GRAIN_TILE = (function(){
   return cv;
 })();
 let GRAIN_PAT = null;
+const GATE_PAT = (function(){
+  const cv = document.createElement('canvas'); cv.width = 1; cv.height = 8;
+  const g = cv.getContext('2d');
+  g.fillStyle = '#000'; g.fillRect(0, 0, 1, 4);
+  g.fillStyle = '#fff'; g.fillRect(0, 4, 1, 4);
+  return g.createPattern(cv, 'repeat');
+})();
 
 const LEAN = /(\?|&)lean=1/.test(location.search);
 const BLOOM = document.createElement('canvas');
@@ -4152,8 +4159,8 @@ function drawFilmLayer(c, t){
 
   /* grain */
   c.save();
-  c.globalAlpha = 0.055;
-  c.globalCompositeOperation = 'overlay';
+  c.globalAlpha = 0.030;
+  c.globalCompositeOperation = 'source-over';
   c.translate((f * 37) % 192 - 192, (f * 53) % 192 - 192);
   c.fillStyle = GRAIN_PAT;
   c.fillRect(0, 0, W + 384, H + 384);
@@ -4166,13 +4173,14 @@ function drawFilmLayer(c, t){
   c.fillStyle = vg;
   c.fillRect(0, 0, W, H);
 
-  /* faint horizontal harmonics — the film gate */
-  c.globalAlpha = 0.020;
-  for (let y = 0; y < H; y += 4){
-    c.fillStyle = (y % 8 === 0) ? '#000' : '#fff';
-    c.fillRect(0, y, W, 1);
+  /* faint horizontal harmonics — the film gate (single pattern fill) */
+  if (GATE_PAT){
+    c.save();
+    c.globalAlpha = 0.016;
+    c.fillStyle = GATE_PAT;
+    c.fillRect(0, 0, W, H);
+    c.restore();
   }
-  c.globalAlpha = 1;
 }
 
 
@@ -4928,8 +4936,9 @@ const POST = {
 };
 POST.b1.width = POST.bw; POST.b1.height = POST.bh;
 POST.b2.width = POST.bw; POST.b2.height = POST.bh;
-POST.c1.width = W; POST.c1.height = H;
-POST.c2.width = W; POST.c2.height = H;
+POST.cw = 960; POST.ch = 540;
+POST.c1.width = POST.cw; POST.c1.height = POST.ch;
+POST.c2.width = POST.cw; POST.c2.height = POST.ch;
 POST.b1x = POST.b1.getContext('2d');
 POST.b2x = POST.b2.getContext('2d');
 POST.c1x = POST.c1.getContext('2d');
@@ -4976,25 +4985,25 @@ function postProcess(c, t, kick, opts){
   const ch = opts.chroma == null ? (0.6 + kick * 2.2) : opts.chroma;
   if (kick > 0.55 && ch > 0.8){
     POST.c1x.globalCompositeOperation = 'source-over';
-    POST.c1x.clearRect(0, 0, W, H);
-    POST.c1x.drawImage(canvas, 0, 0);
+    POST.c1x.clearRect(0, 0, POST.cw, POST.ch);
+    POST.c1x.drawImage(canvas, 0, 0, POST.cw, POST.ch);
     POST.c1x.globalCompositeOperation = 'multiply';
     POST.c1x.fillStyle = '#FF0000';
-    POST.c1x.fillRect(0, 0, W, H);
+    POST.c1x.fillRect(0, 0, POST.cw, POST.ch);
 
     POST.c2x.globalCompositeOperation = 'source-over';
-    POST.c2x.clearRect(0, 0, W, H);
-    POST.c2x.drawImage(canvas, 0, 0);
+    POST.c2x.clearRect(0, 0, POST.cw, POST.ch);
+    POST.c2x.drawImage(canvas, 0, 0, POST.cw, POST.ch);
     POST.c2x.globalCompositeOperation = 'multiply';
     POST.c2x.fillStyle = '#0044FF';
-    POST.c2x.fillRect(0, 0, W, H);
+    POST.c2x.fillRect(0, 0, POST.cw, POST.ch);
 
     const d = ch * (0.6 + kick);
     c.save();
     c.globalCompositeOperation = 'lighter';
     c.globalAlpha = 0.34;
-    c.drawImage(POST.c1, -d, 0);
-    c.drawImage(POST.c2, d, 0);
+    c.drawImage(POST.c1, -d, 0, W, H);
+    c.drawImage(POST.c2, d, 0, W, H);
     c.restore();
   }
 
@@ -5003,8 +5012,8 @@ function postProcess(c, t, kick, opts){
   if (!POST.gp) POST.gp = c.createPattern(tile, 'repeat');
   const f = Math.floor(t * 60);
   c.save();
-  c.globalAlpha = 0.075;
-  c.globalCompositeOperation = 'overlay';
+  c.globalAlpha = 0.038;
+  c.globalCompositeOperation = 'source-over';
   c.translate((f*37) % 256 - 256, (f*61) % 256 - 256);
   c.fillStyle = POST.gp;
   c.fillRect(0, 0, W + 512, H + 512);
@@ -5733,26 +5742,53 @@ function bLorenz(c, box, t, b){
   const S = box.w / 62;
   const cx = box.x + box.w*0.52, cy = box.y + box.h*0.52;
 
-  /* trailing polyline, depth-sorted by segment */
+  /* trailing polyline, batched single-path render */
+  const tailEnd = Math.max(0, reveal - 90);
   let prev = null;
-  for (let i=0;i<reveal;i++){
+  c.save();
+
+  /* 1. cool tail path */
+  if (tailEnd > 1){
+    c.beginPath();
+    for (let i=0; i<tailEnd; i++){
+      const p = pts[i];
+      const rx = p[0]*Math.cos(rot) - p[2]*Math.sin(rot);
+      const rz = p[0]*Math.sin(rot) + p[2]*Math.cos(rot);
+      const k = 1 / (1 + rz * 0.018);
+      const x = cx + (rx - 2) * S * k;
+      const y = cy + ((p[2] - 25) * tilt + rz * 0.9) * S * k;
+      if (i === 0) c.moveTo(x, y); else c.lineTo(x, y);
+      prev = [x, y];
+    }
+    c.strokeStyle = C.bone;
+    c.lineWidth = 0.8;
+    c.globalAlpha = 0.28;
+    c.stroke();
+  }
+
+  /* 2. hot head path */
+  c.beginPath();
+  let headStarted = false;
+  for (let i = tailEnd; i < reveal; i++){
     const p = pts[i];
     const rx = p[0]*Math.cos(rot) - p[2]*Math.sin(rot);
     const rz = p[0]*Math.sin(rot) + p[2]*Math.cos(rot);
     const k = 1 / (1 + rz * 0.018);
     const x = cx + (rx - 2) * S * k;
     const y = cy + ((p[2] - 25) * tilt + rz * 0.9) * S * k;
-    if (prev){
-      const age = (reveal - i);
-      const hot = age < 90 ? (1 - age/90) : 0;
-      c.strokeStyle = hot > 0.55 ? C.accent : C.bone;
-      c.globalAlpha = clamp(0.06 + k*0.30, 0.04, 0.55) * (0.7 + 0.3*hot);
-      c.lineWidth = 0.7 + hot*1.6;
-      c.beginPath(); c.moveTo(prev[0], prev[1]); c.lineTo(x, y); c.stroke();
+    if (!headStarted){
+      if (prev) c.moveTo(prev[0], prev[1]);
+      else c.moveTo(x, y);
+      headStarted = true;
     }
+    c.lineTo(x, y);
     prev = [x, y];
   }
-  c.globalAlpha = 1;
+  c.strokeStyle = C.accent;
+  c.lineWidth = 1.8;
+  c.globalAlpha = 0.88;
+  c.stroke();
+  c.restore();
 
   /* the head */
   if (prev){
@@ -7108,10 +7144,18 @@ function pWord(c, word, opts){
   const col = opts.col || PST.ink;
   c.textAlign = 'center'; c.textBaseline = 'alphabetic';
   let size = opts.size || 200;
-  c.font = '700 ' + size + 'px "Times New Roman",Georgia,serif';
-  while (c.measureText(word).width > maxW && size > 36){
-    size -= 6;
+  if (!pWord._sz) pWord._sz = Object.create(null);
+  const kSz = word + '|' + size + '|' + maxW;
+  if (pWord._sz[kSz]){
+    size = pWord._sz[kSz];
     c.font = '700 ' + size + 'px "Times New Roman",Georgia,serif';
+  } else {
+    c.font = '700 ' + size + 'px "Times New Roman",Georgia,serif';
+    while (c.measureText(word).width > maxW && size > 36){
+      size -= 6;
+      c.font = '700 ' + size + 'px "Times New Roman",Georgia,serif';
+    }
+    pWord._sz[kSz] = size;
   }
   const x = W*0.5, y = opts.y || H*0.90;
   c.save(); c.globalAlpha = 0.9; c.fillStyle = opts.shadow || PST.accent;
@@ -7924,27 +7968,27 @@ function drawPerspectiveFloor(c, t, col, alpha, horizonY){
   c.save();
   c.strokeStyle = col || C.grid;
   c.lineWidth = 1;
-  /* radial perspective lines */
+  /* radial perspective lines in one path */
+  c.beginPath();
   for (let i=-12; i<=12; i++){
     const xTop = W*0.5 + i * 38;
     const xBot = W*0.5 + i * 240;
-    c.globalAlpha = (alpha || 0.25) * (1 - Math.abs(i)/14);
-    c.beginPath();
     c.moveTo(xTop, hy);
     c.lineTo(xBot, H);
-    c.stroke();
   }
-  /* horizontal depth lines moving forward */
+  c.globalAlpha = (alpha || 0.25) * 0.8;
+  c.stroke();
+  /* horizontal depth lines in one path */
+  c.beginPath();
   const scroll = (t * 0.8) % 1;
   for (let j=0; j<14; j++){
     const p = Math.pow((j + scroll) / 14, 2.1);
     const y = hy + p * (H - hy);
-    c.globalAlpha = (alpha || 0.25) * p;
-    c.beginPath();
     c.moveTo(0, y);
     c.lineTo(W, y);
-    c.stroke();
   }
+  c.globalAlpha = (alpha || 0.25) * 0.7;
+  c.stroke();
   c.restore();
   c.globalAlpha = 1;
 }
@@ -8034,10 +8078,18 @@ function drawKineticKeywordStamp(c, word, age, opts){
   c.textAlign = 'center';
   c.textBaseline = 'alphabetic';
   let sz = opts.size || 156;
-  c.font = '800 ' + sz + 'px "Times New Roman",Georgia,serif';
-  while (c.measureText(word).width > 1720 && sz > 48){
-    sz -= 6;
+  if (!drawKineticKeywordStamp._stampSz) drawKineticKeywordStamp._stampSz = Object.create(null);
+  const kSz = word + '|' + sz;
+  if (drawKineticKeywordStamp._stampSz[kSz]){
+    sz = drawKineticKeywordStamp._stampSz[kSz];
     c.font = '800 ' + sz + 'px "Times New Roman",Georgia,serif';
+  } else {
+    c.font = '800 ' + sz + 'px "Times New Roman",Georgia,serif';
+    while (c.measureText(word).width > 1720 && sz > 48){
+      sz -= 6;
+      c.font = '800 ' + sz + 'px "Times New Roman",Georgia,serif';
+    }
+    drawKineticKeywordStamp._stampSz[kSz] = sz;
   }
   c.globalAlpha = fade * 0.85;
   c.fillStyle = shCol;
@@ -10232,18 +10284,17 @@ function renderFrameAt(t){
     rect(W*0.5 - 8, H*0.48 - 16, 16, 32, C.accent, mp * 0.9);
   }
 
-  /* snapshot of the world layer — the breach layer can rip it over the harness */
-  if (!LEAN){ wbufCtx.globalAlpha = 1; wbufCtx.globalCompositeOperation = 'source-over';
-  wbufCtx.drawImage(canvas, 0, 0); }
   const newScene = (typeof NEW_SCENE_IDS !== 'undefined' && NEW_SCENE_IDS[s.seg.id]);
   if (!bare && !newScene){
+    if (!LEAN){ wbufCtx.globalAlpha = 1; wbufCtx.globalCompositeOperation = 'source-over'; wbufCtx.drawImage(canvas, 0, 0); }
     if (SKIN_SEG && SKIN_SEG[s.seg.id]) drawSkinChat(ctx, s);
     else { drawSplit(ctx, s); drawLeftPanel(ctx, s); }
   }
   drawChrome(ctx, s);
-  if (!LEAN){ fbufCtx.globalAlpha = 1; fbufCtx.globalCompositeOperation = 'source-over';
-  fbufCtx.drawImage(canvas, 0, 0); }
-  if (BREACH_REGISTRY[s.seg.id]) BREACH_REGISTRY[s.seg.id](ctx, s);
+  if (!bare && !newScene && !LEAN){
+    fbufCtx.globalAlpha = 1; fbufCtx.globalCompositeOperation = 'source-over'; fbufCtx.drawImage(canvas, 0, 0);
+  }
+  if (!newScene && BREACH_REGISTRY[s.seg.id]) BREACH_REGISTRY[s.seg.id](ctx, s);
 
   /* Selective glitch slices ONLY on overload / breach segments (never on clean paper plates) */
   const isGlitchSeg = (s.seg.id === 10 || s.seg.id === 13 || s.seg.id === 16 ||
@@ -10559,6 +10610,65 @@ function startRec(){
     document.title = 'REC — world.execute(me);';
   }, 700);
 }
+
+/* ---------- offline deterministic WebCodecs 60fps export ---------- */
+async function startOfflineExport(){
+  RT.playing = false;
+  if (typeof document !== 'undefined'){
+    const hud = document.getElementById('player-hud');
+    if (hud) hud.style.display = 'none';
+    const initOverlay = document.getElementById('init-overlay');
+    if (initOverlay) initOverlay.style.display = 'none';
+  }
+
+  const chunks = [];
+  const totalFrames = Math.ceil(DURATION * 60);
+  const encoder = new VideoEncoder({
+    output: function(chunk){
+      const buf = new Uint8Array(chunk.byteLength);
+      chunk.copyTo(buf);
+      chunks.push(buf);
+    },
+    error: function(e){ console.error('VideoEncoder error:', e); }
+  });
+
+  encoder.configure({
+    codec: 'avc1.640028',
+    width: W,
+    height: H,
+    bitrate: 16000000,
+    framerate: 60,
+    avc: { format: 'annexb' }
+  });
+
+  for (let f = 0; f < totalFrames; f++){
+    while (encoder.encodeQueueSize > 6){
+      await new Promise(function(r){ setTimeout(r, 4); });
+    }
+    const t = f / 60.0;
+    renderFrameAt(t);
+
+    const frame = new VideoFrame(canvas, { timestamp: Math.round(f * 16666.666) });
+    encoder.encode(frame, { keyFrame: (f % 60 === 0) });
+    frame.close();
+
+    if (chunks.length >= 60){
+      const blob = new Blob(chunks, { type: 'application/octet-stream' });
+      chunks.length = 0;
+      await fetch('/chunk_batch', { method: 'POST', body: blob });
+      fetch('/progress?f=' + f + '&total=' + totalFrames).catch(function(){});
+    }
+  }
+
+  await encoder.flush();
+  if (chunks.length > 0){
+    const blob = new Blob(chunks, { type: 'application/octet-stream' });
+    chunks.length = 0;
+    await fetch('/chunk_batch', { method: 'POST', body: blob });
+  }
+  await fetch('/done');
+}
+
 function stopRec(){
   if (rec && rec.state !== 'inactive') rec.stop();
   RT.playing = false;
@@ -10854,10 +10964,14 @@ if (params.get && params.get('test') === '1'){
   const up = params.get('upload');
   if (up) canvas.toBlob(function(b){ fetch(up, { method:'POST', body:b, mode:'cors' }); }, 'image/png');
 } else {
-  if (typeof document !== 'undefined' && document.getElementById && document.getElementById('player-hud')) setupHUD();
-  renderFrameAt(RT.t);
-  updateTimelineUI(RT.t);
-  if (params.get && params.get('record') === '1') setTimeout(startRec, 300);
-  requestAnimationFrame(loop);
+  if (params.get && params.get('export') === '1'){
+    setTimeout(startOfflineExport, 100);
+  } else {
+    if (typeof document !== 'undefined' && document.getElementById && document.getElementById('player-hud')) setupHUD();
+    renderFrameAt(RT.t);
+    updateTimelineUI(RT.t);
+    if (params.get && params.get('record') === '1') setTimeout(startRec, 300);
+    requestAnimationFrame(loop);
+  }
 }
 })();

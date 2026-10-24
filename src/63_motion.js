@@ -64,7 +64,8 @@ function strokeContour(c, pts, cx, cy, size, col, alpha, close){
     if (i === 0) c.moveTo(x, y); else c.lineTo(x, y);
   }
   if (close !== false) c.closePath();
-  c.strokeStyle = col; c.globalAlpha = alpha == null ? 1 : alpha;
+  c.strokeStyle = col; c.lineWidth = 3;
+  c.globalAlpha = alpha == null ? 1 : alpha;
   c.stroke();
   c.globalAlpha = 1;
 }
@@ -74,7 +75,7 @@ const MORPH_SEQ = ['circle', 'square', 'star', 'egg', 'comma', 'eye'];
 
 function world12m(c, s){
   const t = s.lt, b = s.beat;
-  posterGround(c, false, W*0.5, H*0.34);
+  pGround(c, false, W*0.5, H*0.34);
 
   const N = 220;
   const idxF = t / 1.846;
@@ -86,12 +87,12 @@ function world12m(c, s){
   const B = contourPoints(MORPH_SEQ[i1], N);
   const now = morphPoints(A, B, k);
 
-  const cx = W*0.5, cy = H*0.34, S = 300;
+  const cx = W*0.5, cy = H*0.36, S = 430;
 
   /* ghosts of the last four states */
   for (let g=4; g>=1; g--){
     const gp = (i0 - g + MORPH_SEQ.length*2) % MORPH_SEQ.length;
-    strokeContour(c, contourPoints(MORPH_SEQ[gp], N), cx, cy, S, PST.ink, 0.06 * (5-g)/4);
+    strokeContour(c, contourPoints(MORPH_SEQ[gp], N), cx, cy, S, PST.ink, 0.10 * (5-g)/4);
   }
 
   /* misregistered current contour */
@@ -119,10 +120,10 @@ function world12m(c, s){
 /* ---- 4 · SEG 03 · the curve draws itself, the tangent follows ---- */
 function world03m(c, s){
   const t = s.lt, b = s.beat;
-  posterGround(c, false, W*0.5, H*0.32);
+  pGround(c, false, W*0.5, H*0.32);
 
-  const cx = W*0.5, cy = H*0.34;
-  const S = 300;
+  const cx = W*0.5, cy = H*0.36;
+  const S = 380;
   const f = function(x){ return 0.55*x*x - 0.35; };
   const d1 = function(x){ return 1.1*x; };
 
@@ -137,7 +138,7 @@ function world03m(c, s){
     cc.beginPath();
     for (let i=0;i<=shownPts;i++){
       const x = -2.0 + (4.0) * (i/shownPts) * (head + 2.0)/4.0;
-      const X = cx + x*S*0.75, Y = cy - f(x)*S*0.55;
+      const X = cx + x*S*0.75, Y = cy - (f(x)-0.75)*S*0.42;
       if (i === 0) cc.moveTo(X, Y); else cc.lineTo(X, Y);
     }
     cc.stroke();
@@ -146,7 +147,7 @@ function world03m(c, s){
 
   /* the pen + tangent */
   const x0 = head, y0 = f(x0), m0 = d1(x0);
-  const X0 = cx + x0*S*0.75, Y0 = cy - y0*S*0.55;
+  const X0 = cx + x0*S*0.75, Y0 = cy - (y0-0.75)*S*0.42;
   const tx = 220, ty = tx * m0 * 0.55/0.75;
   line(X0 - tx, Y0 + ty, X0 + tx, Y0 - ty, PST.accent, 2.2, 0.95);
   c.fillStyle = PST.ink;
@@ -157,7 +158,7 @@ function world03m(c, s){
   /* the trail of the pen */
   for (let i=1;i<=10;i++){
     const xh = head - i*0.035;
-    const Xh = cx + xh*S*0.75, Yh = cy - f(xh)*S*0.55;
+    const Xh = cx + xh*S*0.75, Yh = cy - (f(xh)-0.75)*S*0.42;
     c.globalAlpha = 0.30 - i*0.028;
     c.fillStyle = PST.accent;
     c.beginPath(); c.arc(Xh, Yh, 3.4 - i*0.2, 0, TAU); c.fill();
@@ -168,3 +169,7 @@ function world03m(c, s){
   pMeta(c, false, "f(x) = 0.55x² − 0.35 · pen at x = " + x0.toFixed(2), "f'(x) = " + m0.toFixed(2));
 }
 
+
+SCENE_REGISTRY[12] = function(c, s){ world12m(c, s); };
+
+SCENE_REGISTRY[3] = function(c, s){ world03m(c, s); };

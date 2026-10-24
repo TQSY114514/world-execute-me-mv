@@ -487,7 +487,8 @@ function renderFrameAt(t){
     const idx = cut.line | 0;
     const pat = [1, 0, 2, 4, 0, 3, 1, 2];
     kind = pat[idx % pat.length];
-    inv = cut.emph && (idx % 3 === 0);
+    const paperSeg = [2,6,12,14,15,17].indexOf(s.seg.id) >= 0;
+    inv = cut.emph && (idx % 3 === 0) && !paperSeg;
   }
   s.kind = kind; s.inv = inv;
   const mpx = W*0.5 + (hash2(s.shot, 31) - 0.5) * 300;
@@ -708,6 +709,31 @@ if (params.get('autotest') === '1'){
     ctx.fillText('AUDIO: ' + window.__AUDIO__ + ' rs=' + SONG.readyState, 20, 50);
   }, 2000);
 }
+/* ---------- isolated verification: one screen, N times ---------- */
+if (params.get('test') === '1'){
+  const times = (params.get('times') || '0').split(',').map(Number);
+  const n = times.length;
+  const tw = Math.floor(W / n), th = Math.floor(tw * 9 / 16);
+  const tiles = [];
+  for (let i=0;i<n;i++){
+    renderFrameAt(times[i]);
+    const cv = document.createElement('canvas');
+    cv.width = tw; cv.height = th;
+    cv.getContext('2d').drawImage(canvas, 0, 0, tw, th);
+    tiles.push(cv);
+  }
+  ctx.setTransform(1,0,0,1,0,0);
+  ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
+  ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
+  for (let i=0;i<n;i++){
+    ctx.drawImage(tiles[i], i*tw, 0);
+    ctx.strokeStyle = '#00F0FF'; ctx.lineWidth = 3;
+    ctx.strokeRect(i*tw + 1, 1, tw - 2, th - 2);
+  }
+  document.title = 'TEST ' + times.join(' / ');
+  return;
+}
+
 renderFrameAt(RT.t);
 if (params.get('record') === '1') setTimeout(startRec, 300);
 requestAnimationFrame(loop);

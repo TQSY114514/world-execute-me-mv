@@ -8475,7 +8475,7 @@ function drawScreenCracks(c, cx, cy, progress, col, alpha){
 const SEG_KEYWORDS = {
   1:  [[2.92, 'PROTECTION'], [6.38, 'OBJECT CREATION'], [10.09, 'INITIALIZATION'], [13.89, 'SIMULATION']],
   3:  [[32.68, 'DIMENSION'], [36.29, 'CIRCUMFERENCE'], [40.05, 'TANGENTS'], [43.51, 'LIMITATIONS']],
-  4:  [[47.67, 'AC ⇄ DC'], [49.53, 'BLIND VISION'], [56.92, 'UNITE DEEPLY']],
+  4:  [[46.52, 'AC ⇄ DC', 1.4], [48.28, 'BLIND VISION', 1.5], [53.92, 'A.D. ⇄ B.C.', 1.25], [55.66, 'UNITE', 1.6], [57.50, 'SO DEEPLY', 1.8]],
   5:  [[61.96, 'STIMULATIONS'], [65.40, 'SATISFACTION'], [69.26, 'EXECUTION'], [73.17, 'SIMULATION']],
   6:  [[76.96, 'NUTRIENTS'], [80.62, 'ANTIOXIDANTS'], [84.27, 'ENJOYMENT'], [87.92, 'EXISTENCE']],
   7:  [[92.02, 'F ⇄ M'], [95.47, 'AM ⇄ PM'], [99.35, 'S ⇄ M'], [101.47, 'THE TRANCE']],
@@ -8876,9 +8876,17 @@ function drawTokenCondensation(c, word, age, opts){
 
   const y = opts.y || H * 0.88;
   const cx = opts.x || W * 0.5;
-  const baseSize = opts.size || 148;
   const col = opts.col || C.bone;
   const shCol = opts.shadow || C.accent;
+
+  /* Auto-clamp font size to prevent any horizontal screen clipping */
+  let baseSize = opts.size || 148;
+  c.font = '800 ' + baseSize + 'px "Times New Roman",Georgia,serif';
+  const maxW = W * 0.86;
+  const curW = c.measureText(word).width;
+  if (curW > maxW){
+    baseSize = Math.floor(baseSize * (maxW / curW));
+  }
 
   /* Condensation phases:
      0.00 .. 0.22 : High Entropy Logits & Superposition
@@ -9787,39 +9795,204 @@ function world03_v4(c, s){
     }
     c.globalAlpha = 1;
   } else if (phase === 1){
-    /* Phase 2: Circle unrolling into 2*pi*R ruler (CIRCUMFERENCE) */
+    /* Phase 2: Perfect Kinematic Cycloid & Tangential Wheel Unrolling (CIRCUMFERENCE) */
     const lt = t - 3.692;
-    pGround(c, false, W*0.5, H*0.38);
-    const unroll = EASE.inOut(clamp((lt - 0.5) / 2.2, 0, 1));
-    const R = 175;
-    const cx = lerp(W*0.32, W*0.24, unroll), cy = H*0.40;
-    pInk(c, function(cc, col){
-      cc.strokeStyle = col; cc.lineWidth = 2.6;
-      /* remaining arc of circle */
-      cc.beginPath();
-      cc.arc(cx, cy, R, unroll * TAU, TAU);
-      cc.stroke();
-      /* unrolled straight circumference line */
-      const lineLen = unroll * TAU * R;
-      cc.beginPath();
-      cc.moveTo(cx, cy + R);
-      cc.lineTo(cx + lineLen, cy + R);
-      cc.stroke();
-      /* radial spokes */
-      for (let k=0; k<16; k++){
-        const a = (k / 16) * TAU;
-        if (a < unroll * TAU){
-          const lx = cx + (a / TAU) * (TAU * R);
-          cc.beginPath(); cc.moveTo(lx, cy + R - 14); cc.lineTo(lx, cy + R + 14); cc.stroke();
-        } else {
-          cc.beginPath();
-          cc.moveTo(cx, cy);
-          cc.lineTo(cx + Math.cos(a)*R, cy + Math.sin(a)*R);
-          cc.stroke();
-        }
+    c.fillStyle = C.bg; c.fillRect(0, 0, W, H);
+    gridFurniture(c, G, t, 12);
+
+    const R = 135;
+    const L = TAU * R; // 848.23 px
+    const groundY = H * 0.62;
+    const startX = W * 0.22; // 422.4 px
+    const unroll = EASE.inOut(clamp((lt - 0.35) / 2.6, 0, 1));
+    const rollDist = unroll * L;
+    const wheelX = startX + rollDist;
+    const wheelY = groundY - R;
+
+    /* 1. Underlying graph paper & coordinate grid */
+    c.save();
+    c.strokeStyle = 'rgba(237, 234, 226, 0.08)';
+    c.lineWidth = 1;
+    for (let gx = startX; gx <= startX + L + 60; gx += 40){
+      c.beginPath(); c.moveTo(gx, groundY - R * 2.4); c.lineTo(gx, groundY + 80); c.stroke();
+    }
+    for (let gy = groundY - R * 2.4; gy <= groundY + 80; gy += 40){
+      c.beginPath(); c.moveTo(startX - 60, gy); c.lineTo(startX + L + 60, gy); c.stroke();
+    }
+
+    /* 2. Horizontal ground rail / ruler */
+    c.strokeStyle = 'rgba(237, 234, 226, 0.25)';
+    c.lineWidth = 1.5;
+    c.beginPath();
+    c.moveTo(startX - 40, groundY);
+    c.lineTo(startX + L + 60, groundY);
+    c.stroke();
+
+    /* 3. The unrolled straight circumference line (glowing cyan ribbon on ground) */
+    if (rollDist > 0.5){
+      c.strokeStyle = C.accent;
+      c.lineWidth = 6;
+      c.globalAlpha = 0.25 + 0.15 * b.kick;
+      c.beginPath();
+      c.moveTo(startX, groundY);
+      c.lineTo(wheelX, groundY);
+      c.stroke();
+
+      c.lineWidth = 2.8;
+      c.globalAlpha = 0.95;
+      c.beginPath();
+      c.moveTo(startX, groundY);
+      c.lineTo(wheelX, groundY);
+      c.stroke();
+    }
+
+    /* 4. Vernier graduation scale ticks along the unrolled line */
+    const marks = [
+      { u: 0.00, label: '0' },
+      { u: 0.25, label: '½πr' },
+      { u: 0.50, label: 'πr' },
+      { u: 0.75, label: '1½πr' },
+      { u: 1.00, label: '2πr [848.2 px]' }
+    ];
+    c.font = '10px "JetBrains Mono",monospace';
+    c.textAlign = 'center';
+    c.textBaseline = 'top';
+    for (let m = 0; m < marks.length; m++){
+      const mx = startX + marks[m].u * L;
+      const isPast = (unroll >= marks[m].u - 0.01);
+      c.strokeStyle = isPast ? C.accent : 'rgba(237, 234, 226, 0.3)';
+      c.lineWidth = isPast ? 1.6 : 1.0;
+      c.globalAlpha = isPast ? 0.9 : 0.35;
+      c.beginPath();
+      c.moveTo(mx, groundY - 6);
+      c.lineTo(mx, groundY + 12);
+      c.stroke();
+
+      if (isPast){
+        c.fillStyle = (m === marks.length - 1) ? C.accent : C.bone;
+        c.fillText(marks[m].label, mx, groundY + 16);
       }
-    }, 4 + b.kick * 4, false);
-    pMeta(c, false, 'C = 2πr · r = 175 px · unwrapped = ' + Math.round(unroll * 100) + '%', 'CIRCUMFERENCE');
+    }
+
+    /* 5. Luminous Cycloid trajectory traced by peeling point P0 */
+    c.strokeStyle = C.accent;
+    c.lineWidth = 1.6;
+    c.globalAlpha = 0.65;
+    c.beginPath();
+    const cycSteps = 60;
+    const maxStep = Math.max(1, Math.floor(cycSteps * unroll));
+    for (let i = 0; i <= maxStep; i++){
+      const v = (i / cycSteps);
+      const theta = v * TAU;
+      const px = startX + R * (theta - Math.sin(theta));
+      const py = groundY - R * (1 - Math.cos(theta));
+      if (i === 0) c.moveTo(px, py); else c.lineTo(px, py);
+    }
+    c.stroke();
+
+    /* 6. Ghost dashed outline of the full circle */
+    c.save();
+    c.strokeStyle = 'rgba(237, 234, 226, 0.20)';
+    c.lineWidth = 1.2;
+    c.setLineDash([5, 5]);
+    c.beginPath();
+    c.arc(wheelX, wheelY, R, 0, TAU);
+    c.stroke();
+    c.restore();
+
+    /* 7. Remaining unrolled arc on the wheel (peels smoothly with C^1 continuity at contact point) */
+    if (unroll < 0.999){
+      const startAngle = Math.PI * 0.5 - (1 - unroll) * TAU;
+      const endAngle = Math.PI * 0.5;
+
+      c.strokeStyle = C.bone;
+      c.lineWidth = 3.2;
+      c.globalAlpha = 0.95;
+      c.beginPath();
+      c.arc(wheelX, wheelY, R, startAngle, endAngle, false);
+      c.stroke();
+
+      /* Glowing peeled tip P0 */
+      const tipTheta = unroll * TAU;
+      const tipX = startX + R * (tipTheta - Math.sin(tipTheta));
+      const tipY = groundY - R * (1 - Math.cos(tipTheta));
+      c.fillStyle = C.accent;
+      c.beginPath();
+      c.arc(tipX, tipY, 4.5, 0, TAU);
+      c.fill();
+    }
+
+    /* 8. Wheel Spokes & Center Hub (12 spokes rotating clockwise with wheel) */
+    c.save();
+    c.strokeStyle = 'rgba(237, 234, 226, 0.35)';
+    c.lineWidth = 1.2;
+    c.globalAlpha = 0.55;
+    for (let k = 0; k < 12; k++){
+      const spokeAngle = (k / 12) * TAU + unroll * TAU;
+      c.beginPath();
+      c.moveTo(wheelX, wheelY);
+      c.lineTo(wheelX + Math.cos(spokeAngle) * R, wheelY + Math.sin(spokeAngle) * R);
+      c.stroke();
+    }
+    c.fillStyle = C.bg;
+    c.strokeStyle = C.accent;
+    c.lineWidth = 2.0;
+    c.globalAlpha = 0.95;
+    c.beginPath();
+    c.arc(wheelX, wheelY, 14, 0, TAU);
+    c.fill();
+    c.stroke();
+    c.fillStyle = C.accent;
+    c.fillRect(wheelX - 3, wheelY - 3, 6, 6);
+    c.restore();
+
+    /* 9. Contact Point indicator */
+    c.fillStyle = C.accent;
+    c.fillRect(wheelX - 3, groundY - 3, 6, 6);
+
+    /* 10. Dynamic Vernier Caliper & Dimension Callout */
+    const caliperY = groundY + 44;
+    c.strokeStyle = C.accent;
+    c.lineWidth = 1.4;
+    c.globalAlpha = 0.85;
+    c.beginPath();
+    c.moveTo(startX, caliperY - 8); c.lineTo(startX, caliperY + 8);
+    c.moveTo(startX, caliperY); c.lineTo(startX + 14, caliperY);
+    c.stroke();
+    c.beginPath();
+    c.moveTo(wheelX, caliperY - 8); c.lineTo(wheelX, caliperY + 8);
+    c.moveTo(wheelX, caliperY); c.lineTo(wheelX - 14, caliperY);
+    c.stroke();
+    if (wheelX > startX + 28){
+      c.setLineDash([3, 3]);
+      c.beginPath();
+      c.moveTo(startX + 14, caliperY);
+      c.lineTo(wheelX - 14, caliperY);
+      c.stroke();
+      c.setLineDash([]);
+    }
+
+    c.font = '600 13px "JetBrains Mono",monospace';
+    c.fillStyle = C.bone;
+    c.textAlign = 'center';
+    c.textBaseline = 'middle';
+    c.globalAlpha = 0.95;
+    const curLen = (rollDist).toFixed(1);
+    const pct = Math.round(unroll * 100);
+    c.fillText('Δx = 2πr · (' + pct + '%) = ' + curLen + ' px', (startX + wheelX) * 0.5, caliperY + 22);
+
+    /* Scientific notation header card in upper area */
+    c.font = '12px "JetBrains Mono",monospace';
+    c.textAlign = 'left';
+    c.fillStyle = C.accent;
+    c.globalAlpha = 0.85;
+    c.fillText('GEOM.INVOLUTE_UNROLL :: R=' + R + ' px · C=2πR=' + L.toFixed(2) + ' px', startX, groundY - R * 2.3);
+    c.fillStyle = C.bone;
+    c.globalAlpha = 0.65;
+    c.fillText('CYCLOID KINEMATICS: x(θ)=r(θ - sin θ) · y(θ)=r(1 - cos θ)', startX, groundY - R * 2.3 + 18);
+
+    c.restore();
+    c.globalAlpha = 1;
   } else if (phase === 2){
     /* Phase 3: Sine Wave + Plotter Pen + 24 Normal/Tangent Vectors (TANGENTS) */
     world03d(c, s);
@@ -9856,14 +10029,13 @@ function world03_v4(c, s){
   /* Stamp the 4 Verse 1 keywords on their exact vocal hits */
   const kwList = SEG_KEYWORDS[3];
   for (let i=0;i<kwList.length;i++){
-    const dark = (phase !== 1);
     drawKineticKeywordStamp(c, kwList[i][1], s.t - kwList[i][0], {
       size: 148, y: H * 0.89,
-      col: dark ? C.bone : PST.ink,
-      shadow: dark ? C.accent : PST.accent
+      col: C.bone,
+      shadow: C.accent
     });
   }
-  drawHarnessOverlayCard(c, s, 44, H - 110, 620, phase !== 1);
+  drawHarnessOverlayCard(c, s, 44, H - 110, 620, true);
 }
 
 /* ---------- SEG 04 · LIMIT PARADOX (Switches, Vision Rattle & Era History, 44.53–59.30s) ---------- */
@@ -9907,13 +10079,13 @@ function drawEraSilhouette(c, eraIdx, x, baseY, s, col){
 function world04_v4(c, s){
   const t = s.lt, b = s.beat;
 
-  if (t < 4.2){
-    /* Phase 1 (0..4.2s): Current Switch AC -> DC + Live Rectifier */
+  if (t < 3.65){
+    /* Phase 1 (0..3.65s): Current Switch AC -> DC + Live Rectifier */
     c.fillStyle = C.bg; c.fillRect(0, 0, W, H);
     const G = GridLayout(24, 12, 40, 12);
     gridFurniture(c, G, t, 41);
 
-    const flip = smoothstep(2.6, 3.0, t);
+    const flip = smoothstep(1.9, 2.4, t);
     drawBigToggle(c, 160, 320, 560, 150, flip, 'AC ~', 'DC =', 'POWER.CURRENT_MODE', { dark: true });
 
     /* waveform on right being rectified when switch flips */
@@ -9929,14 +10101,14 @@ function world04_v4(c, s){
     c.strokeStyle = C.accent; c.lineWidth = 3; c.stroke();
 
     /* user cursor clicking the toggle */
-    const cx = lerp(320, 580, smoothstep(1.8, 2.75, t));
-    const cy = lerp(580, 405, smoothstep(1.8, 2.75, t));
-    drawUserPointer(c, cx, cy, t > 2.7 && t < 3.15);
-  } else if (t < 8.5){
-    /* Phase 2 (4.2..8.5s): BLIND MY VISION / SO DIZZY — Rapid Vision Switch Rattle + Droste Spin */
-    const lt = t - 4.2;
+    const cx = lerp(320, 580, smoothstep(1.2, 2.1, t));
+    const cy = lerp(580, 405, smoothstep(1.2, 2.1, t));
+    drawUserPointer(c, cx, cy, t > 2.0 && t < 2.5);
+  } else if (t < 7.20){
+    /* Phase 2 (3.65..7.20s): BLIND MY VISION / SO DIZZY — Rapid Vision Switch Rattle + Droste Spin */
+    const lt = t - 3.65;
     const rattleIdx = Math.floor(lt * 5.2);
-    const invOn = (rattleIdx % 2 === 1) && lt < 3.6;
+    const invOn = (rattleIdx % 2 === 1) && lt < 3.2;
     const bgCol = invOn ? '#F2EFE7' : C.bg;
     const fgCol = invOn ? '#101014' : C.bone;
 
@@ -9963,12 +10135,12 @@ function world04_v4(c, s){
       dark: !invOn, accent: C.red
     });
     drawUserPointer(c, W*0.5 + (invOn ? -80 : 90), H*0.48 + 18, true);
-  } else if (t < 12.4){
-    /* Phase 3 (8.5..12.4s): Time Travel A.D. -> B.C. Cut-Paper History Strip + Rolling Odometer */
-    const lt = t - 8.5;
+  } else if (t < 10.75){
+    /* Phase 3 (7.20..10.75s): Time Travel A.D. -> B.C. Cut-Paper History Strip + Rolling Odometer */
+    const lt = t - 7.20;
     pGround(c, false, W*0.5, H*0.36);
 
-    const scroll = EASE.inOut(clamp(lt / 3.4, 0, 1));
+    const scroll = EASE.inOut(clamp(lt / 3.1, 0, 1));
     const year = Math.round(lerp(2026, -490, scroll));
     const eraStr = year >= 0 ? ('A.D. ' + String(year).padStart(4, '0')) : ('B.C. ' + String(-year).padStart(4, '0'));
 
@@ -9988,23 +10160,40 @@ function world04_v4(c, s){
     txt('A.D. ◄ │ ► B.C.', zeroX, 110, PST.accent, 16, 700, 'center', 0.95);
 
     /* Giant odometer year readout in the sky above the architecture */
-    pWord(c, eraStr, { y: H * 0.38, size: 140, col: 'rgba(242, 239, 231, 0.45)', shadow: PST.accent });
+    pWord(c, eraStr, { y: H * 0.32, size: 130, col: 'rgba(242, 239, 231, 0.45)', shadow: PST.accent });
 
     /* User cursor dragging the spark along the timeline */
     const sparkX = lerp(W * 0.82, W * 0.22, scroll);
     drawSparkMotif(c, sparkX, baseY - 220, 36, PST.accent, 1, lt * 2);
     drawUserPointer(c, sparkX + 12, baseY - 208, true);
   } else {
-    /* Phase 4 (12.4..14.77s): UNITE SO DEEPLY — Hyperbolic Loss Landscape & Saddle Optimizer */
-    world04n(c, s);
+    /* Phase 4 (10.75..14.77s): UNITE SO DEEPLY — Hyperbolic Loss Landscape & Saddle Optimizer */
+    c.fillStyle = C.bg; c.fillRect(0, 0, W, H);
+    const G = GridLayout(24, 12, 40, 12);
+    gridFurniture(c, G, t, 44);
+
     if (typeof AI_VISION !== 'undefined' && AI_VISION.drawLossLandscape){
-      AI_VISION.drawLossLandscape(c, t, W * 0.5, H * 0.48, 360, C.accent, 0.68);
+      AI_VISION.drawLossLandscape(c, t, W * 0.5, H * 0.46, 380, C.accent, 0.78);
     }
+
+    /* Convergence telemetry */
+    c.font = '11px "JetBrains Mono",monospace';
+    c.textAlign = 'center';
+    c.fillStyle = C.accent;
+    c.globalAlpha = 0.85;
+    c.fillText('OPTIMIZER :: ADAM(lr=1e-3) · CONVERGED TO GLOBAL MINIMUM [LOSS = 0.000000]', W * 0.5, H * 0.88);
+    c.globalAlpha = 1;
   }
 
   const kwList = SEG_KEYWORDS[4];
+  const isDark = (t < 7.20 || t >= 10.75);
   for (let i=0;i<kwList.length;i++){
-    drawKineticKeywordStamp(c, kwList[i][1], s.t - kwList[i][0], { size: 136, y: H * 0.76 });
+    drawKineticKeywordStamp(c, kwList[i][1], s.t - kwList[i][0], {
+      size: 136, y: H * 0.76,
+      maxAge: kwList[i][2] || 1.8,
+      col: isDark ? C.bone : PST.ink,
+      shadow: isDark ? C.accent : PST.accent
+    });
   }
 }
 

@@ -298,9 +298,17 @@ function drawTokenCondensation(c, word, age, opts){
 
   const y = opts.y || H * 0.88;
   const cx = opts.x || W * 0.5;
-  const baseSize = opts.size || 148;
   const col = opts.col || C.bone;
   const shCol = opts.shadow || C.accent;
+
+  /* Auto-clamp font size to prevent any horizontal screen clipping */
+  let baseSize = opts.size || 148;
+  c.font = '800 ' + baseSize + 'px "Times New Roman",Georgia,serif';
+  const maxW = W * 0.86;
+  const curW = c.measureText(word).width;
+  if (curW > maxW){
+    baseSize = Math.floor(baseSize * (maxW / curW));
+  }
 
   /* Condensation phases:
      0.00 .. 0.22 : High Entropy Logits & Superposition

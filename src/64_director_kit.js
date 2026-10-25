@@ -504,7 +504,7 @@ function drawScreenCracks(c, cx, cy, progress, col, alpha){
 const SEG_KEYWORDS = {
   1:  [[2.92, 'PROTECTION'], [6.38, 'OBJECT CREATION'], [10.09, 'INITIALIZATION'], [13.89, 'SIMULATION']],
   3:  [[32.68, 'DIMENSION'], [36.29, 'CIRCUMFERENCE'], [40.05, 'TANGENTS'], [43.51, 'LIMITATIONS']],
-  4:  [[47.67, 'AC ⇄ DC'], [49.53, 'BLIND VISION'], [56.92, 'UNITE DEEPLY']],
+  4:  [[46.52, 'AC ⇄ DC', 1.4], [48.28, 'BLIND VISION', 1.5], [53.92, 'A.D. ⇄ B.C.', 1.25], [55.66, 'UNITE', 1.6], [57.50, 'SO DEEPLY', 1.8]],
   5:  [[61.96, 'STIMULATIONS'], [65.40, 'SATISFACTION'], [69.26, 'EXECUTION'], [73.17, 'SIMULATION']],
   6:  [[76.96, 'NUTRIENTS'], [80.62, 'ANTIOXIDANTS'], [84.27, 'ENJOYMENT'], [87.92, 'EXISTENCE']],
   7:  [[92.02, 'F ⇄ M'], [95.47, 'AM ⇄ PM'], [99.35, 'S ⇄ M'], [101.47, 'THE TRANCE']],
